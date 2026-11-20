@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+# Hộp duyệt Nuxt (SPA) — build ra .output rồi chạy server Nitro.
+
+FROM node:24-slim AS build
+RUN npm install -g pnpm@12.5.1
+WORKDIR /app
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/web apps/web
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter "@vm/web..."
+RUN pnpm --filter @vm/web build
+
+FROM node:24-slim AS runtime
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
+WORKDIR /app
+COPY --from=build /app/apps/web/.output ./.output
+USER node
+EXPOSE 3000
+CMD ["node", ".output/server/index.mjs"]

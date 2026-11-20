@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan v4: module tạo video</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f4f1;--s:#fff;--ink:#14232b;--mu:#53636b;--ln:#d5dbd8;--ac:#2f4bff;--ok:#1b7a4b;--code:#e8ecea;--hl:#fff3c4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181c;--s:#18232a;--ink:#e6edf0;--mu:#9fb0b7;--ln:#2c3b43;--ac:#8fa0ff;--ok:#5fd39b;--code:#0c1317;--hl:#3d3512}}
+:root[data-theme="dark"]{--bg:#10181c;--s:#18232a;--ink:#e6edf0;--mu:#9fb0b7;--ln:#2c3b43;--ac:#8fa0ff;--ok:#5fd39b;--code:#0c1317;--hl:#3d3512}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 "Be Vietnam Pro",system-ui,sans-serif}
+main{max-width:920px;margin:0 auto;padding:40px 20px 80px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;font-weight:800;margin:0 0 10px;letter-spacing:-.02em}
+h2{font-size:22px;font-weight:700;margin:44px 0 8px}
+h3{font-size:17px;font-weight:700;margin:16px 0 4px}
+p{margin:0 0 10px;max-width:72ch}
+.lead{color:var(--mu);font-size:18px}
+ul,ol{padding-left:22px;margin:6px 0}li{margin:3px 0}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--ln);vertical-align:top}
+pre{background:var(--code);border:1px solid var(--ln);border-radius:8px;padding:14px 16px;overflow-x:auto;font:13.5px/1.55 ui-monospace,Menlo,Consolas,monospace;margin:8px 0}
+code{font:13.5px ui-monospace,Menlo,Consolas,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre code{background:none;padding:0}
+.chg{background:var(--hl);border-radius:8px;padding:14px 20px;margin:18px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span{background:var(--s);border:1px solid var(--ln);border-radius:6px;padding:4px 10px;font-size:14px}
+.flow i{color:var(--mu);font-style:normal}
+.ph{background:var(--s);border:1px solid var(--ln);border-left:5px solid var(--ac);border-radius:8px;padding:14px 20px;margin:12px 0}
+.ph label{display:flex;gap:10px;align-items:flex-start;padding:3px 0;cursor:pointer}
+.ph input{margin-top:6px;width:17px;height:17px;accent-color:var(--ok);flex:none}
+.ph input:checked+span{color:var(--mu);text-decoration:line-through}
+.when{color:var(--mu);font-size:14px;font-weight:500}
+.done{margin-top:8px;padding-top:8px;border-top:1px dashed var(--ln);font-size:15px}
+.new{font-size:12px;font-weight:700;color:var(--ok);border:1px solid var(--ok);border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:2px}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>Plan v4: module tạo video</h1>
+<p class="lead">AI làm từ kịch bản tới video, người duyệt. Hình chính là ảnh sản phẩm thật, mascot làm người dẫn chuyện, clip AI chỉ dùng ít. Giai đoạn đầu dùng cho kênh affiliate của chính mình, kiến trúc dựng sẵn để thương mại hóa sau.</p>
+
+<div class="chg"><b>Cập nhật lần này (v4)</b> — các chỗ đổi có nhãn <span class="new">v4</span>
+<ul>
+<li><b>Giữ nguyên khung v3</b> (monorepo TS, Fastify, worker, CLI, Nuxt, Drizzle, FFmpeg) và toàn bộ tính năng.</li>
+<li><b>DB chuyển sang Postgres ngay từ đầu</b>: Drizzle viết schema riêng cho từng loại DB, để sau mới đổi từ SQLite thì phải viết lại schema, migration và truy vấn JSON. Hàng đợi job dùng <code>FOR UPDATE SKIP LOCKED</code> (mục 2).</li>
+<li><b>Chuẩn bị thương mại hóa</b>: có sẵn bảng tài khoản (<code>workspace</code>, <code>app_user</code>, <code>membership</code>); lớp trừu tượng <code>Storage</code> và provider AI; hạn mức theo từng workspace (mục 2, 10).</li>
+<li><b>Hàng đợi chịu lỗi</b>: tách queue <code>llm</code> và <code>render</code>; giữ chỗ job bằng <code>locked_until</code>; có <code>run_after</code>, <code>idempotency_key</code> và trạng thái <code>failed</code> (mục 2, 3).</li>
+<li><b>Luồng trạng thái</b>: thêm <code>previewing</code> (render bản xem thử trước khi duyệt) và <code>failed</code>. Duyệt gắn với version: sửa sau khi duyệt thì quay về <code>pending_review</code> (mục 3).</li>
+<li><b>Chấm điểm và tự sửa bằng AI thành tùy chọn</b> (<code>auto_score</code>), giai đoạn đầu tắt và duyệt tay (mục 4).</li>
+<li><b>Sửa mâu thuẫn</b>: chốt <code>ScenePatch</code>, bỏ "JSON Patch" ở M7. Prompt ảnh viết bằng <b>tiếng Anh</b> (mục 5, 7).</li>
+<li><b>JSON cảnh gọn hơn</b>: bỏ <code>notes</code>, <code>score</code>, <code>uses_ai</code> khỏi JSON; gộp khóa cảnh thành một trường <code>lock</code> (mục 7).</li>
+<li><b>Bảng dữ liệu viết lại đầy đủ cột và index</b>: thêm <code>product</code>, <code>review_note</code>, <code>batch_item</code>, <code>publication</code>, <code>metric_snapshot</code>, <code>experiment_variant</code>, <code>quota_usage</code>, <code>audit_log</code> (mục 10).</li>
+<li>Thêm mốc <b>M0.5</b> (chỉnh khung theo v4) và <b>M10</b> (thương mại hóa). Thêm <b>luồng kiểm chứng thị trường chạy song song</b> (mục 12).</li>
+</ul></div>
+
+<h2>1. Phạm vi MVP</h2>
+<ul>
+<li><b>Có:</b> thư viện template, tạo nháp hàng loạt, tự kiểm tra bằng luật cứng, chấm điểm AI (tùy chọn), review inbox, AI sửa đúng cảnh, khóa cảnh, phiên bản, render xem thử và render cuối, mascot overlay, gói xuất để đăng tay, nhập số liệu sau khi đăng.</li>
+<li><b>Chỉnh tay Mức 1:</b> sửa chữ lời thoại, đổi thời lượng, đổi thứ tự cảnh, thay ảnh, đổi nhạc và âm lượng, đổi hành động mascot. Cảnh nào người đã sửa tay thì tự khóa.</li>
+<li><b>Chưa có:</b> giao diện nhiều người dùng (bảng đã có sẵn, xem M10), tự động đăng, editor kéo thả, mascot 3D, thanh toán.</li>
+</ul>
+
+<h2>2. Khung dự án</h2>
+<p>Monorepo TypeScript (pnpm), một lõi dùng chung cho API, worker, CLI và web. v3 ghi là đã dựng và chạy thử với SQLite; phần đổi sang Postgres ở v4 phải làm lại migration và chạy thử lại (M0.5).</p>
+<h3>Cấu trúc thư mục</h3>
+<pre><code>video-affiliate/
+  packages/core/src/
+    config/  logger.ts
+    db/          schema Drizzle (pg-core), migration, id ULID          <b>v4</b>
+    spec/        schema JSON video (zod), ScenePatch, validator, luật cứng
+    queue/       enqueue, claim (SKIP LOCKED), heartbeat, retry         <b>v4</b>
+    providers/   Llm, ImageGen, Tts, ClipGen + callProvider()           <b>v4</b>
+    storage/     Storage: LocalDisk (giờ), S3/R2 (khi thương mại)       <b>v4</b>
+    render/      lệnh FFmpeg, preset, hash cảnh
+  apps/api/      Fastify, prefix /api (health, ready, products, videos, review)
+  apps/worker/   chạy job theo queue (llm, render), mỗi queue một mức song song
+  apps/cli/      lệnh vm: product:add, draft, list, show, review
+  apps/web/      Nuxt 3: hộp duyệt
+  deploy/        docker-compose.yml (postgres, api, worker, web, caddy), Caddyfile,
+                 scripts/backup.sh (pg_dump)
+  .github/workflows/  ci.yml, deploy.yml (+ dependabot.yml)
+  Dockerfile  Dockerfile.web  .env.example  pnpm-workspace.yaml  tsconfig.base.json</code></pre>
+<h3>Thành phần</h3>
+<div class="wrap"><table>
+<tr><th>Lớp</th><th>Chọn</th><th>Ghi chú</th></tr>
+<tr><td>Backend</td><td>Fastify 5, zod</td><td>Request id trong mọi log và header phản hồi, xử lý lỗi tập trung, tắt gọn khi nhận SIGTERM. Mọi route lấy <code>workspace_id</code> từ phiên đăng nhập, không tin giá trị client gửi lên <span class="new">v4</span></td></tr>
+<tr><td>Worker</td><td>Poll bảng <code>jobs</code> theo queue <span class="new">v4</span></td><td>Lấy job bằng <code>SELECT … FOR UPDATE SKIP LOCKED</code>, đặt <code>locked_until</code> và gia hạn mỗi 30 giây khi đang chạy. Worker chết thì job tự quay lại hàng đợi khi hết hạn giữ chỗ. Queue <code>render</code> chạy 1 job một lúc, queue <code>llm</code> chạy rải theo hạn mức.</td></tr>
+<tr><td>DB</td><td>Postgres 16 + Drizzle <span class="new">v4</span></td><td>Chạy local bằng docker compose. ID dạng ULID (text). JSON lưu <code>jsonb</code>, thời gian lưu <code>timestamptz</code> (UTC).</td></tr>
+<tr><td>Storage</td><td>Interface <code>Storage</code> <span class="new">v4</span></td><td>Giờ ghi đĩa local, bảng chỉ lưu <code>storage_key</code>, không lưu đường dẫn tuyệt đối. Khi thương mại hóa thì đổi sang S3/R2 mà không phải sửa nghiệp vụ.</td></tr>
+<tr><td>Provider AI</td><td><code>callProvider()</code> <span class="new">v4</span></td><td>Mọi lời gọi AI đi qua một hàm: giữ chỗ hạn mức trong <code>quota_usage</code> → gọi → ghi <code>ai_call_log</code> → trả lại phần giữ chỗ còn thừa. Không gọi SDK trực tiếp ở chỗ khác.</td></tr>
+<tr><td>Frontend</td><td>Nuxt 3 + Vue 3</td><td>Dev tự proxy <code>/api</code>; production do Caddy định tuyến</td></tr>
+<tr><td>Render</td><td>FFmpeg</td><td>Hàm dựng lệnh cho cảnh ảnh (5 kiểu chuyển động) và overlay mascot; preset có version để tính hash cache</td></tr>
+<tr><td>Logging</td><td>pino</td><td>Xem bên dưới</td></tr>
+<tr><td>Deploy</td><td>Docker Compose + Caddy</td><td>Giai đoạn đầu chạy local; lên 1 VPS khi cần (M10)</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions + GHCR</td><td>Xem bên dưới</td></tr>
+</table></div>
+<h3>Chạy ở máy cá nhân</h3>
+<pre><code>cp .env.example .env        # không có khóa Cloudflare thì tự dùng StubLlm
+pnpm install
+pnpm db:up                  # docker compose up -d postgres            (v4)
+pnpm db:migrate             # tạo bảng, workspace + user mặc định
+pnpm dev:api                # http://localhost:3000/api/health
+pnpm dev:worker             # terminal khác
+pnpm dev:web                # http://localhost:3001
+pnpm cli product:add --name "Tai nghe X" --link https://example.com/a
+pnpm cli draft --product &lt;id&gt;   # worker viết nháp, render preview, video sang pending_review</code></pre>
+<p>Lệnh khác: <code>pnpm typecheck</code>, <code>pnpm test</code>, <code>pnpm build</code>, <code>pnpm db:generate</code> (sau khi sửa schema), <code>pnpm cli cache:gc</code> (dọn cache cũ) <span class="new">v4</span>.</p>
+<h3>Logging</h3>
+<ul>
+<li>Mỗi dòng log là JSON ra stdout để Docker thu; môi trường dev thì in đẹp.</li>
+<li>Mỗi request có <code>reqId</code> (nhận từ header <code>x-request-id</code> hoặc tự sinh); mỗi job có <code>jobId</code>, <code>jobType</code>, <code>queue</code>, <code>attempt</code>, <code>workspaceId</code>.</li>
+<li>Token và header nhạy cảm bị che; health check ghi ở mức warn để khỏi ngập log.</li>
+<li>Docker xoay vòng log: tối đa 3 file x 10MB mỗi container. Xem bằng <code>docker compose logs -f api worker</code>.</li>
+<li>Muốn gom log hoặc báo lỗi tập trung (Sentry, Loki, Better Stack) thì chỉ cần gắn vào <code>packages/core/src/logger.ts</code>.</li>
+</ul>
+<h3>Deploy (khi lên VPS)</h3>
+<pre><code>Internet -&gt; Caddy (80/443, HTTPS, basic auth cho tới khi có đăng nhập thật)
+              |-- /api/*  -&gt; api    (healthcheck /api/ready, chạy migration khi khởi động)
+              |-- còn lại -&gt; web
+           worker   (chờ api khỏe rồi mới chạy, stop_grace_period 60s cho job render)
+           postgres (không mở cổng ra ngoài)
+           volume: pgdata + storage + backups</code></pre>
+<ol>
+<li>VPS Ubuntu, cài Docker và plugin compose; tạo user deploy thuộc nhóm docker, thêm public key.</li>
+<li><code>sudo mkdir -p /opt/vm &amp;&amp; sudo chown deploy /opt/vm</code>.</li>
+<li>Tạo <code>/opt/vm/.env</code> từ <code>.env.example</code>: <code>NODE_ENV=production</code>, <code>DOMAIN</code>, <code>DATABASE_URL</code>, <code>POSTGRES_PASSWORD</code>, <code>BASIC_AUTH_USER</code>, <code>BASIC_AUTH_HASH</code> (dấu <code>$</code> gấp đôi thành <code>$$</code>), khóa Cloudflare.</li>
+<li>Trỏ DNS của <code>DOMAIN</code> về IP VPS.</li>
+<li>Push lên <code>main</code>, workflow lo phần còn lại.</li>
+<li>Cron sao lưu mỗi đêm: <code>0 3 * * * cd /opt/vm &amp;&amp; ./backup.sh</code> (<code>pg_dump -Fc</code> + nén thư mục storage, giữ 14 bản gần nhất). Mỗi tháng thử khôi phục 1 lần.</li>
+</ol>
+<p>Bảo mật hiện tại: Caddy khóa cả site bằng basic auth; api, web và postgres không mở cổng ra ngoài, chỉ Caddy mở 80/443.</p>
+<h3>CI/CD</h3>
+<div class="wrap"><table>
+<tr><th>Workflow</th><th>Khi nào chạy</th><th>Làm gì</th></tr>
+<tr><td><code>ci.yml</code></td><td>Mọi PR và push lên main</td><td>Cài (khóa lockfile), dựng service Postgres, chạy migration, typecheck, test, build web</td></tr>
+<tr><td><code>deploy.yml</code></td><td>CI xanh trên main, hoặc chạy tay</td><td>Build 2 image (app, web), đẩy lên GHCR, chép compose và Caddyfile lên VPS, <code>docker compose pull &amp;&amp; up -d</code>, dọn image cũ</td></tr>
+<tr><td><code>dependabot.yml</code></td><td>Hằng tuần</td><td>Đề xuất cập nhật npm và GitHub Actions</td></tr>
+</table></div>
+<p>Secrets cần tạo trong repo: <code>VPS_HOST</code>, <code>VPS_USER</code>, <code>VPS_SSH_KEY</code> (khóa riêng ed25519 của user deploy).</p>
+<h3>Trạng thái kiểm tra</h3>
+<ul>
+<li><b>Đã kiểm tra (v3, trên SQLite):</b> typecheck core, api, worker, cli; 8 test (validator patch, luật cứng, hàng đợi job, lệnh FFmpeg, API); <code>nuxt build</code>; chạy thật api + worker + DB từ tạo sản phẩm tới <code>pending_review</code>; render FFmpeg thật 5 kiểu chuyển động và overlay mascot ra video 1080x1920 có âm thanh.</li>
+<li><b>Phải kiểm lại sau M0.5:</b> migration Postgres, test hàng đợi (claim song song, job hết hạn giữ chỗ quay lại hàng đợi), luồng tạo sản phẩm → <code>pending_review</code>.</li>
+<li><b>Chưa kiểm tra:</b> Dockerfile, docker-compose, Caddyfile và 2 workflow.</li>
+<li><b>Chưa nối:</b> thư viện template, cảnh <code>ai_image</code>, tự khóa cảnh khi sửa tay, gọi Cloudflare thật (kiểm tra lại tên model <code>CF_MODEL</code> và định dạng phản hồi), TTS, phụ đề, ghép cảnh thành video hoàn chỉnh, job <code>render</code> và <code>revise</code>, chấm điểm bằng LLM, insight Meta/TikTok.</li>
+<li><b>Lưu ý thiết kế:</b> AI sửa theo cảnh dùng <code>ScenePatch</code> (sửa theo <code>sceneId</code>), không dùng JSON Patch chuẩn. App chạy bằng <code>tsx</code> kể cả production cho gọn, muốn nhẹ hơn thì build bằng <code>tsup</code> sau.</li>
+</ul>
+
+<h2>3. Luồng và trạng thái</h2>
+<div class="flow"><span>queued</span><i>→</i><span>drafting</span><i>→</i><span>auto_check</span><i>→</i><span>previewing</span><i>→</i><span>pending_review</span><i>→</i><span>approved</span><i>→</i><span>rendering</span><i>→</i><span>ready</span><i>→</i><span>published</span></div>
+<ul>
+<li>Không qua luật cứng: <code>rejected_auto</code>. Có ghi chú: <code>needs_changes</code> → <code>revising</code> → <code>auto_check</code>.</li>
+<li><code>previewing</code> <span class="new">v4</span>: render bản xem thử (độ phân giải thấp, dùng lại cache cảnh) để hộp duyệt có video xem.</li>
+<li><code>failed</code> <span class="new">v4</span>: bước <code>drafting</code>, <code>previewing</code> hoặc <code>rendering</code> hết lượt thử lại. Lưu <code>failed_reason</code>, có nút "Chạy lại" để trở về bước vừa lỗi.</li>
+<li><b>Duyệt gắn với version</b> <span class="new">v4</span>: bấm Duyệt thì ghi <code>video.approved_version_id</code>. Chỉ render cuối và xuất khi <code>approved_version_id = current_version_id</code>. Sửa sau khi đã duyệt thì video quay về <code>pending_review</code>.</li>
+<li>Mọi lần sửa tạo version mới. Hai đường vào cùng một JSON: <b>ghi chú cho AI</b> và <b>sửa tay trên timeline</b>; cả hai tạo version mới và đều qua validator.</li>
+<li>Mỗi lần đổi trạng thái quan trọng (duyệt, từ chối, khôi phục version, xuất) ghi <code>audit_log</code> <span class="new">v4</span>.</li>
+</ul>
+
+<h2>4. Tạo nháp hàng loạt, tự kiểm tra, review inbox</h2>
+<ul>
+<li><b>Batch:</b> chọn N sản phẩm, mỗi sản phẩm một <code>batch_item</code> và một job <code>draft</code> (<code>idempotency_key = batch_id:product_id</code> để bấm 2 lần không ra 2 nháp). Job chạy rải theo hạn mức; hết hạn mức thì đặt <code>run_after</code> sang 00:00 UTC hôm sau.</li>
+<li><b>Luật cứng (luôn chạy, không tốn tiền):</b> độ dài hợp lệ, có link affiliate, cờ nhãn AI nếu dùng ảnh hoặc clip AI, không có từ cam kết quá đà, ảnh thuộc đúng sản phẩm, mascot không đè phụ đề.</li>
+<li><b>Chấm điểm bằng LLM (tùy chọn)</b> <span class="new">v4</span>: bật bằng <code>workspace.settings.auto_score</code>, giai đoạn đầu <b>tắt</b> và người duyệt tay. Khi bật thì chấm hook, độ rõ lợi ích, độ khớp lời và ảnh; dưới ngưỡng thì tự sửa tối đa 1 lần (<code>auto_revise</code>) rồi loại.</li>
+<li><b>Review inbox:</b> danh sách xếp theo điểm (nếu có) hoặc theo thời gian; xem preview và timeline; ba hành động chính là Duyệt, Từ chối, Ghi chú rồi "AI sửa".</li>
+</ul>
+
+<h3>Timeline và sửa tay</h3>
+<div class="wrap"><table>
+<tr><th>Làn</th><th>Hiển thị</th><th>Người sửa được</th></tr>
+<tr><td>Cảnh</td><td>Ảnh, thời lượng, lời thoại từng cảnh</td><td>Sửa chữ, đổi thời lượng, đổi thứ tự, thay ảnh</td></tr>
+<tr><td>Phụ đề</td><td>Dòng chữ theo mốc thời gian</td><td>Sửa chữ</td></tr>
+<tr><td>Mascot</td><td>Hành động và khoảng <code>from</code> đến <code>to</code></td><td>Đổi hành động, vị trí, mốc bắt đầu/kết thúc</td></tr>
+<tr><td>Nhạc</td><td>Bài nhạc nền và âm lượng</td><td>Đổi bài, chỉnh âm lượng</td></tr>
+</table></div>
+<ul>
+<li><b>Tự khóa khi sửa tay:</b> người sửa một cảnh thì cảnh đó có <code>lock = "user_edit"</code>, AI không được sửa đè. Muốn AI làm lại thì người mở khóa.</li>
+<li>Ghi chú cho AI lưu ở <code>review_note</code> theo <code>scene_id</code>, chỉ tác động lên cảnh được nêu và chưa bị khóa. AI sửa xong thì ghi chú chuyển <code>applied</code>, kèm version đã áp dụng.</li>
+<li><b>Để sau (Mức 2):</b> cắt clip, kéo thả chữ trực tiếp trên khung hình, nhiều track tự do.</li>
+</ul>
+
+<h2>5. Thư viện template và luồng khi chưa có ý tưởng</h2>
+<p>Template là <b>dữ liệu</b> (bản ghi JSON kèm prompt) nên bản thân nó không tốn thêm tiền. Chi phí chỉ nằm ở số lần gọi AI mỗi video. Template có <code>workspace_id = null</code> là template hệ thống dùng chung; khi thương mại hóa, khách tự tạo template riêng trong workspace của họ <span class="new">v4</span>.</p>
+<h3>Luồng</h3>
+<pre><code>Đầu vào: sản phẩm + ý tưởng (tùy chọn) + template (tùy chọn)
+   |
+   +-- [chưa có ý tưởng] AI gợi ý 3-5 góc tiếp cận theo template -> người dùng chọn
+   |                     (chế độ hàng loạt: AI tự chọn góc đầu tiên, người duyệt đổi sau)
+   v
+Kịch bản: hook mở đầu -> story thuyết phục -> CTA mua ngay (bật/tắt)
+   v
+Kế hoạch hình mỗi cảnh: ảnh sản phẩm thật | ảnh AI (bối cảnh) | mascot | clip AI (chỉ hook)
+   v
+Tạo ảnh AI -> TTS -> render preview -> vào hộp duyệt</code></pre>
+<ul>
+<li>Không chọn template thì AI chọn template hợp nhất theo loại sản phẩm.</li>
+<li>Ảnh sản phẩm luôn là ảnh thật. Ảnh AI chỉ minh họa bối cảnh hoặc vấn đề, không vẽ lại sản phẩm.</li>
+<li><code>imagePrompt</code> của từng cảnh được trả về trong <b>cùng một lần gọi</b> viết kịch bản, và <b>viết bằng tiếng Anh</b> vì Flux hiểu tiếng Anh tốt hơn hẳn. Lời thoại vẫn là tiếng Việt <span class="new">v4</span>.</li>
+</ul>
+<h3>Cấu trúc một template</h3>
+<pre><code>{
+  "id": "problem-solution", "version": 1, "name": "Vấn đề rồi giải pháp",
+  "durationSec": 30, "tone": "thân thiện, gần gũi",
+  "ideaPrompt": "Từ thông tin sản phẩm, nêu 3 vấn đề người dùng hay gặp mà sản phẩm giải quyết. Mỗi vấn đề một câu.",
+  "scriptPrompt": "Viết kịch bản video {durationSec} giây tiếng Việt cho {product}. Góc tiếp cận: {angle}. Giọng: {tone}. Cảnh 1 là hook nêu vấn đề trong 3 giây. Các cảnh sau kể ngắn vì sao sản phẩm giải quyết được, chỉ dùng thông tin có trong mô tả. {ctaRule}. Mỗi cảnh trả thêm imagePrompt bằng tiếng Anh, mô tả bối cảnh, không mô tả sản phẩm.",
+  "scenes": [
+    { "role": "hook",  "visual": "ai_image",      "mascot": "surprised" },
+    { "role": "intro", "visual": "product_image", "mascot": "wave" },
+    { "role": "demo",  "visual": "product_image" },
+    { "role": "cta",   "visual": "product_image", "mascot": "happy", "optional": true }
+  ],
+  "cta": { "enabled": true }
+}</code></pre>
+<p><code>{ctaRule}</code> là câu điều kiện: bật CTA thì "kết bằng lời kêu gọi nhẹ, không cam kết quá đà", tắt thì "không có lời kêu gọi mua". Cảnh <code>demo</code> và <code>proof</code> chỉ dùng ảnh sản phẩm thật. Một version template đã dùng thì không sửa nữa; muốn đổi thì tạo version mới.</p>
+<h3>Bộ template khởi đầu (sản phẩm công nghệ)</h3>
+<div class="wrap"><table>
+<tr><th>Template</th><th>Hợp với</th></tr>
+<tr><td>Vấn đề rồi giải pháp</td><td>Phụ kiện giải quyết một rắc rối cụ thể</td></tr>
+<tr><td>3 lý do nên mua</td><td>Sản phẩm có nhiều điểm mạnh rõ ràng</td></tr>
+<tr><td>Trước và sau</td><td>Sản phẩm cải thiện trải nghiệm thấy được</td></tr>
+<tr><td>Mẹo công nghệ rồi gắn sản phẩm</td><td>Kéo người xem, bán nhẹ</td></tr>
+<tr><td>So sánh nhanh (A hay B)</td><td>Hai nhóm sản phẩm gần nhau</td></tr>
+<tr><td>Câu hỏi gây tò mò</td><td>Hook mạnh cho sản phẩm lạ</td></tr>
+<tr><td>Top 3 dưới một mức giá</td><td>Nhóm sản phẩm giá mềm</td></tr>
+<tr><td>Dùng thử cảm nhận</td><td>Khi có clip tự quay</td></tr>
+</table></div>
+<h3>Chi phí ước tính cho một video (Cloudflare, 4 ảnh AI 1024x1024)</h3>
+<div class="wrap"><table>
+<tr><th>Bước</th><th>Neurons ước tính</th></tr>
+<tr><td>Gợi ý ý tưởng (chỉ khi chưa có ý tưởng)</td><td>~50</td></tr>
+<tr><td>Kịch bản + prompt ảnh</td><td>~65</td></tr>
+<tr><td>4 ảnh AI (mỗi ảnh ~57,6)</td><td>~230</td></tr>
+<tr><td><b>Tổng khi duyệt tay</b></td><td><b>~345</b></td></tr>
+<tr><td>Chấm điểm AI (chỉ khi bật <code>auto_score</code>) <span class="new">v4</span></td><td>~65</td></tr>
+<tr><td>Tự sửa 1 lần (chỉ khi dưới ngưỡng) <span class="new">v4</span></td><td>~65 + ảnh làm lại</td></tr>
+<tr><td><b>Tổng khi bật đủ</b></td><td><b>~410–480</b></td></tr>
+</table></div>
+<ul>
+<li>Hạn mức miễn phí 10.000 neurons mỗi ngày, <b>dùng chung cho chữ và ảnh</b>, reset lúc 00:00 UTC (7 giờ sáng giờ Việt Nam). Duyệt tay thì khoảng 28 video/ngày, bật đủ thì khoảng 20. Nhu cầu hiện tại 2–3 video/ngày nằm gọn trong mức miễn phí.</li>
+<li>Vượt hạn mức tính $0,011 cho mỗi 1.000 neurons, tức khoảng $0,004–0,005 (~100–130 đồng) mỗi video.</li>
+<li>Phần ảnh theo bảng giá Flux-1-schnell (4,80 neurons mỗi ô 512x512 cộng 9,60 mỗi bước). Phần chữ là <b>ước tính</b> theo giá Llama 3.1 8B với ~1.000 token vào và ~500 token ra. Model 8B viết tiếng Việt yếu; đổi sang model lớn hơn thì phần chữ tăng nhiều lần. Phải đo lại qua <code>ai_call_log</code>.</li>
+<li>Khi thương mại hóa, hạn mức miễn phí của một tài khoản Cloudflare không đủ cho nhiều khách: cần tính giá vốn mỗi video và hạn mức theo gói (xem M10).</li>
+<li>Chi phí thật sự là <b>công viết và thử prompt tiếng Việt</b> cho từng template.</li>
+</ul>
+<h3>Quy tắc dùng template</h3>
+<ul>
+<li>Mỗi video ghi <code>template_id</code> và <code>template_version</code> để biết mẫu nào ra đơn (nối với <code>metric_snapshot</code> và A/B).</li>
+<li>Prompt ảnh cần mô tả đủ ngữ cảnh; prompt quá ngắn dễ bị bộ lọc của Flux chặn nhầm.</li>
+<li>Thử mỗi template với khoảng 10 sản phẩm trước khi dùng, đếm tỷ lệ kịch bản qua luật cứng.</li>
+</ul>
+
+<h2>6. Mascot</h2>
+<h3>Mascot là gì và làm bằng công cụ gì</h3>
+<p>Mascot (linh vật) là một nhân vật hoạt hình cố định, xuất hiện trong mọi video để người xem nhận ra kênh. Nên chọn hình khối đơn giản, ít màu, màu nổi: người que, robot nhỏ, hoặc đồ vật nhân hóa (cục sạc, tai nghe có mặt).</p>
+<ol>
+<li><b>Vẽ nhân vật</b> bằng Figma hoặc Inkscape (có bản miễn phí), xuất SVG và tách thành các bộ phận: đầu, thân, tay, mắt, miệng.</li>
+<li><b>Làm chuyển động</b> bằng code (SVG + CSS/GSAP, dựng trong Remotion) hoặc công cụ như Rive, Lottie. Kiểm tra lại giới hạn bản miễn phí trước khi chọn.</li>
+<li><b>Xuất mỗi hành động một lần</b> ra WebM nền trong suốt (kiểm tra lại trong docs Remotion), lưu vào <code>asset</code> với <code>kind = mascot_action</code> và <code>meta = { mascot_id, action, duration }</code> <span class="new">v4</span>.</li>
+<li><b>Khi render</b>, FFmpeg chồng clip lên cảnh theo <code>from</code> và <code>to</code>; cảnh dài hơn clip thì lặp <code>idle</code> hoặc ghép hành động tiếp theo.</li>
+</ol>
+<p>Không dùng AI sinh ảnh để tạo từng hành động vì mỗi lần ra một khác. AI chỉ để lấy ý tưởng hình dáng ban đầu, bản dùng thật phải vẽ lại thành vector. Có <code>mascot_id</code> thì sau này mỗi kênh hoặc mỗi khách có thể dùng mascot riêng mà không phải đổi schema.</p>
+<h3>Vai trò và quy tắc</h3>
+<ul>
+<li>Mascot là <b>người dẫn chuyện</b>: hook, nêu vấn đề, giải thích ý trừu tượng, phản ứng, kêu gọi.</li>
+<li><b>Không</b> dùng cho cảnh <code>demo</code> và <code>proof</code>, không che hoặc thay ảnh sản phẩm.</li>
+<li>Là <b>lớp phủ trên ảnh sản phẩm thật</b>, đặt ở hai bên giữa khung để không đè vùng phụ đề.</li>
+<li>Gợi ý khởi điểm: mascot xuất hiện khoảng 30-40% thời lượng. Đây là giá trị để thử, sẽ chỉnh theo kết quả A/B.</li>
+<li>Làm 2D đơn giản trước, một nhân vật cố định cho cả kênh để người xem nhận ra.</li>
+</ul>
+<h3>Thư viện hành động (render sẵn một lần)</h3>
+<div class="wrap"><table>
+<tr><th>Hành động</th><th>Dùng cho</th></tr>
+<tr><td><code>enter</code>, <code>wave</code></td><td>Mở đầu, chào, kêu gọi cuối video</td></tr>
+<tr><td><code>point</code></td><td>Chỉ vào ảnh, thông số, lợi ích</td></tr>
+<tr><td><code>surprised</code></td><td>Hook, nêu vấn đề gây bất ngờ</td></tr>
+<tr><td><code>think</code></td><td>Đặt câu hỏi, so sánh</td></tr>
+<tr><td><code>happy</code></td><td>Kết quả tốt, kêu gọi mua</td></tr>
+<tr><td><code>shake_head</code></td><td>Cảnh "đừng làm vậy", nhược điểm sản phẩm cũ</td></tr>
+<tr><td><code>idle</code></td><td>Vòng lặp nền khi chỉ cần có mặt</td></tr>
+</table></div>
+<p>Mỗi hành động là một clip nền trong suốt (WebM có kênh alpha hoặc chuỗi PNG). Remotion miễn phí cho cá nhân và công ty tới 3 người; quá mức đó phải mua license công ty (xem mục 14).</p>
+<h3>Ví dụ overlay bằng FFmpeg</h3>
+<pre><code>ffmpeg -i scene.mp4 -c:v libvpx-vp9 -i point.webm -filter_complex \
+"[1:v]scale=360:-1,setpts=PTS+0.5/TB[m];\
+ [0:v][m]overlay=W-w-40:H*0.30:enable='between(t,0.5,2.5)'" \
+-c:a copy out.mp4</code></pre>
+
+<h2>7. Cấu trúc JSON cảnh</h2>
+<p>JSON chỉ là <b>đặc tả để render</b> và được lưu trong <code>video_version.spec</code>. Những gì thuộc về bản ghi (id, version, workspace), kết quả chấm điểm hay ghi chú đều nằm ở bảng riêng <span class="new">v4</span>.</p>
+<pre><code>{ "schema": 4, "product_id": "p_01J…",
+  "template": { "id": "problem-solution", "version": 1, "angle": "pin tụt nhanh" },
+  "cta": { "enabled": true },
+  "music": { "asset_id": "a_01J…", "volume": 0.15 },
+  "scenes": [{
+    "id": "s_a1", "role": "hook", "lock": null,
+    "narration": "Pin điện thoại tụt nhanh như vậy sao?", "duration": null,
+    "voice": { "provider": "edge", "name": "vi-VN-HoaiMyNeural",
+               "rate": 1.0, "delivery": "urgent" },
+    "visual": { "type": "ai_image",
+                "prompt": "a person holding a phone with a nearly empty battery in a cozy cafe, warm light, vertical shot",
+                "asset_id": null, "motion": "zoom_in" },
+    "mascot": { "mascot_id": "m_default", "action": "surprised",
+                "position": "right_mid", "from": 0.2, "to": 2.0 } }] }</code></pre>
+<ul>
+<li><code>visual.type</code> gồm: <code>image</code> (ảnh sản phẩm thật, bắt buộc có <code>asset_id</code>), <code>ai_image</code> (ảnh bối cảnh do AI tạo; tạo xong thì điền <code>asset_id</code>), <code>ai_clip</code>.</li>
+<li><code>lock</code> gồm: <code>null</code>, <code>"user"</code> (khóa chủ động) và <code>"user_edit"</code> (tự khóa khi sửa tay). Thay cho cặp <code>locked</code> + <code>locked_by</code> của v3 <span class="new">v4</span>.</li>
+<li><code>mascot.position</code> gồm: <code>right_mid</code>, <code>left_mid</code>.</li>
+<li><code>duration = null</code> nghĩa là lấy theo độ dài file TTS. Vì vậy TTS phải chạy trước khi dựng timeline. <code>start</code> và tổng thời lượng luôn được tính ra.</li>
+<li><b>Tính ra, không lưu</b> <span class="new">v4</span>: <code>uses_ai</code> = có cảnh <code>ai_image</code> hoặc <code>ai_clip</code>; điểm nằm ở <code>video_check</code>; ghi chú nằm ở <code>review_note</code>.</li>
+<li>AI sửa theo từng cảnh qua <code>ScenePatch</code>; validator chặn cảnh khóa và cảnh ngoài mục tiêu. Với <code>demo</code> và <code>proof</code>, validator từ chối <code>mascot</code>, <code>ai_image</code> và <code>ai_clip</code>.</li>
+<li>Có trường <code>schema</code> để sau này nâng cấp định dạng thì vẫn đọc được version cũ.</li>
+</ul>
+<h3>Hash cache cảnh <span class="new">v4</span></h3>
+<pre><code>scene_hash = sha256(narration, voice, visual.type, visual.asset_id | prompt+model,
+                    motion, mascot, subtitle_style, duration, RENDER_PRESET_VERSION)
+tts_key    = sha256(narration, voice)                -> asset kind=tts
+image_key  = sha256(model, prompt, size, steps)      -> asset kind=ai_image</code></pre>
+<p>Thiếu một đầu vào trong hash là sẽ dùng nhầm cache cũ. Đổi preset render thì tăng <code>RENDER_PRESET_VERSION</code>.</p>
+
+<h2>8. Quy tắc clip AI</h2>
+<ul>
+<li>Chỉ cho <code>hook</code>, <code>intro</code>, bối cảnh. Tối đa 1-2 clip mỗi video, mỗi clip không quá 5 giây.</li>
+<li>Ảnh sản phẩm luôn là ảnh thật. Hiện chi phí ước tính trước khi tạo, cache theo hash, có ngân sách tối đa mỗi video.</li>
+<li>Có ảnh hoặc clip AI thì checklist xuất bản nhắc bật nhãn nội dung AI; <code>publication.ai_label_on</code> ghi lại là đã bật.</li>
+<li>Ưu tiên mascot thay clip AI ở cảnh hook để tiết kiệm chi phí.</li>
+<li>Ảnh AI (<code>ai_image</code>) chỉ cho bối cảnh và minh họa vấn đề, không tạo hình sản phẩm; sinh bằng Flux với prompt tiếng Anh đủ ngữ cảnh, cache theo hash.</li>
+</ul>
+
+<h2>9. Thí nghiệm A/B: có và không mascot</h2>
+<div class="wrap"><table>
+<tr><th>Mục</th><th>Cách làm</th></tr>
+<tr><td>Biến thử</td><td>Cùng sản phẩm, cùng hook, một bản có mascot và một bản không; mỗi bản là một dòng <code>experiment_variant</code></td></tr>
+<tr><td>Điều kiện</td><td>Đăng cùng khung giờ, cùng kênh hoặc kênh tương đương, ghi vào <code>experiment</code></td></tr>
+<tr><td>Số liệu</td><td>Views, tỷ lệ xem hết nếu có, click, đơn: <code>metric_snapshot</code> ở các mốc 1 giờ, 24 giờ, 7 ngày (giai đoạn đầu nhập tay)</td></tr>
+<tr><td>Kết luận</td><td>Cần nhiều cặp mới đáng tin vì số liệu nhiễu. Hiệu quả của template và mẫu hook <b>tính ra từ <code>metric_snapshot</code></b> (view SQL), không nhập tay vào <code>hook_template</code> <span class="new">v4</span></td></tr>
+</table></div>
+
+<h2>10. Bảng dữ liệu <span class="new">v4</span></h2>
+<p>Quy ước chung: ID là ULID dạng text (tiền tố theo bảng, VD <code>vid_</code>, <code>p_</code>); thời gian là <code>timestamptz</code> UTC; JSON là <code>jsonb</code>; bảng nghiệp vụ có <code>workspace_id</code> và index ghép bắt đầu bằng <code>workspace_id</code>; truy vấn ở API luôn lọc theo workspace của phiên. Bảng <code>video_version</code> và mỗi version template đã ghi thì không sửa.</p>
+
+<h3>Tài khoản</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>workspace</code></td><td>id, name, plan, settings (<code>auto_score</code>, <code>auto_revise</code>, <code>daily_budget</code>, giọng mặc định), created_at</td><td>PK id</td></tr>
+<tr><td><code>app_user</code></td><td>id, email, password_hash, created_at (tên <code>user</code> trùng từ khóa của Postgres)</td><td>UNIQUE email</td></tr>
+<tr><td><code>membership</code></td><td>workspace_id, user_id, role (owner | editor | reviewer)</td><td>PK (workspace_id, user_id)</td></tr>
+</table></div>
+<p>Giai đoạn đầu chỉ seed 1 workspace và 1 user. Có sẵn bảng thì về sau không phải thêm <code>workspace_id</code> vào dữ liệu cũ.</p>
+
+<h3>Sản phẩm và tài nguyên</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>product</code></td><td>id, workspace_id, name, affiliate_url, source_url, description, category, archived_at, created_at</td><td>INDEX (workspace_id, created_at)</td></tr>
+<tr><td><code>asset</code></td><td>id, workspace_id, kind (product_image | ai_image | ai_clip | music | mascot_action | tts | scene_clip | render), storage_key, sha256, mime, product_id?, source (shop | self | ai | library), license, cache_key?, prompt?, model?, meta (w, h, duration, mascot_id, action), last_used_at, created_at</td><td>UNIQUE (workspace_id, sha256); UNIQUE (workspace_id, cache_key) khi có cache_key; INDEX (workspace_id, kind); INDEX product_id</td></tr>
+<tr><td><code>scene_cache</code></td><td>scene_hash, workspace_id, asset_id, preset_version, last_used_at</td><td>PK (workspace_id, scene_hash)</td></tr>
+</table></div>
+<p>Ảnh AI và file TTS dùng lại theo <code>asset.cache_key</code>; clip cảnh đã render dùng lại theo <code>scene_cache</code>. Lệnh <code>cache:gc</code> xóa file có <code>last_used_at</code> cũ hơn N ngày và không còn version nào đang dùng, để đĩa không đầy dần.</p>
+
+<h3>Video, duyệt và render</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>video</code></td><td>id, workspace_id, product_id, status, current_version_id, approved_version_id?, template_id, template_version, batch_id?, created_by (user_id hoặc null nếu AI), failed_reason?, created_at, updated_at</td><td>INDEX (workspace_id, status, updated_at); INDEX product_id</td></tr>
+<tr><td><code>video_version</code></td><td>id, video_id, version_no, parent_version_id?, spec (jsonb), spec_hash, source (ai_draft | ai_revise | user_edit | restore), author_user_id?, change_summary, created_at</td><td>UNIQUE (video_id, version_no)</td></tr>
+<tr><td><code>video_check</code></td><td>id, video_version_id, rules (kết quả từng luật), passed, ai_score?, ai_feedback?, created_at</td><td>INDEX video_version_id</td></tr>
+<tr><td><code>review</code></td><td>id, video_version_id, user_id, decision (approve | reject | needs_changes), created_at</td><td>INDEX video_version_id</td></tr>
+<tr><td><code>review_note</code></td><td>id, video_version_id, scene_id, user_id, text, status (open | applied | dismissed), applied_in_version_id?, created_at</td><td>INDEX (video_version_id, status)</td></tr>
+<tr><td><code>render</code></td><td>id, video_version_id, kind (preview | final), status, asset_id?, preset_version, error?, created_at, finished_at</td><td>INDEX (video_version_id, kind)</td></tr>
+</table></div>
+
+<h3>Template</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>template</code></td><td>id, version, workspace_id? (null = template hệ thống), name, status (draft | active | archived), content (prompts, scenes, cta, tone, duration), created_at</td><td>PK (id, version); INDEX (workspace_id, status)</td></tr>
+<tr><td><code>hook_template</code></td><td>id, workspace_id?, pattern, category, status, created_at</td><td>Hiệu quả tính bằng view từ <code>metric_snapshot</code></td></tr>
+</table></div>
+
+<h3>Hàng đợi và lô</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>batch</code></td><td>id, workspace_id, name, goal, budget_neurons, status, created_at</td><td>INDEX (workspace_id, created_at)</td></tr>
+<tr><td><code>batch_item</code></td><td>batch_id, product_id, video_id?, status</td><td>PK (batch_id, product_id)</td></tr>
+<tr><td><code>jobs</code></td><td>id, workspace_id, queue (llm | render), type, payload, status (queued | running | done | failed | cancelled), priority, attempts, max_attempts, run_after, locked_by, locked_until, idempotency_key, last_error, video_id?, batch_id?, created_at, finished_at</td><td>UNIQUE idempotency_key; INDEX (queue, priority, run_after) WHERE status = 'queued'; INDEX (status, locked_until)</td></tr>
+</table></div>
+
+<h3>AI và chi phí</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>ai_call_log</code></td><td>id, workspace_id, job_id?, video_id?, purpose (idea | script | image | score | revise | tts | clip), provider, model, units (neurons hoặc ký tự), cost_estimate, latency_ms, status, error?, prompt, output, created_at</td><td>INDEX (workspace_id, created_at); INDEX video_id</td></tr>
+<tr><td><code>quota_usage</code></td><td>workspace_id, provider, day (ngày UTC), reserved, used</td><td>PK (workspace_id, provider, day)</td></tr>
+</table></div>
+<p><code>callProvider()</code> cộng <code>reserved</code> bằng một câu <code>UPDATE … WHERE reserved + used + :est &lt;= limit</code> trước khi gọi. Không cập nhật được dòng nào nghĩa là hết hạn mức: job được dời sang hôm sau. Nhờ vậy nhiều job chạy song song cũng không vượt hạn mức.</p>
+
+<h3>Xuất bản và đo lường</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>publication</code></td><td>id, workspace_id, video_id, video_version_id, platform (tiktok | facebook | youtube | shopee), account, url, posted_at, ai_label_on</td><td>INDEX (workspace_id, posted_at); INDEX video_id</td></tr>
+<tr><td><code>metric_snapshot</code></td><td>id, publication_id, checkpoint (1h | 24h | 7d | manual), taken_at, views, completion_rate?, clicks, orders, revenue?</td><td>INDEX (publication_id, taken_at)</td></tr>
+<tr><td><code>experiment</code></td><td>id, workspace_id, hypothesis, variable, status, conclusion</td><td>INDEX workspace_id</td></tr>
+<tr><td><code>experiment_variant</code></td><td>experiment_id, video_id, variant (VD with_mascot | no_mascot)</td><td>PK (experiment_id, video_id)</td></tr>
+</table></div>
+
+<h3>Hệ thống</h3>
+<div class="wrap"><table>
+<tr><th>Bảng</th><th>Cột chính</th><th>Khóa và index</th></tr>
+<tr><td><code>audit_log</code></td><td>id, workspace_id, user_id?, action, target_type, target_id, data, created_at</td><td>INDEX (workspace_id, created_at)</td></tr>
+<tr><td><code>provider_credential</code> (M10)</td><td>workspace_id, provider, secret_encrypted (AES-256-GCM), key_version, created_at</td><td>PK (workspace_id, provider)</td></tr>
+</table></div>
+
+<h2>11. Việc cần làm theo mốc</h2>
+<div class="ph"><b>M0: Khung dự án</b> <span class="when">đã dựng xong (v3)</span>
+<label><input type="checkbox" checked><span>Monorepo, core, api, worker, cli, web, DB + migration, logging</span></label>
+<label><input type="checkbox" checked><span>Dockerfile, docker-compose, Caddy, CI và deploy workflow (viết xong, chưa chạy thử)</span></label></div>
+<div class="ph"><b>M0.5: Chỉnh khung theo v4</b> <span class="new">v4</span> <span class="when">tuần 1</span>
+<label><input type="checkbox"><span>Đổi Drizzle sang <code>pg-core</code>, Postgres trong docker compose, ID ULID, viết lại migration đầu tiên theo mục 10</span></label>
+<label><input type="checkbox"><span>Seed <code>workspace</code> + <code>app_user</code> mặc định; API lấy <code>workspace_id</code> từ phiên, mọi truy vấn lọc theo workspace</span></label>
+<label><input type="checkbox"><span>Hàng đợi: queue <code>llm</code>/<code>render</code>, <code>SKIP LOCKED</code>, <code>locked_until</code> + heartbeat, <code>run_after</code>, <code>idempotency_key</code>; test 2 worker lấy job cùng lúc và job hết hạn giữ chỗ</span></label>
+<label><input type="checkbox"><span>Interface <code>Storage</code> (LocalDisk) và <code>callProvider()</code> + <code>quota_usage</code> + <code>ai_call_log</code></span></label>
+<label><input type="checkbox"><span>Trạng thái <code>previewing</code>, <code>failed</code>; cột <code>approved_version_id</code></span></label>
+<div class="done"><b>Xong khi:</b> luồng tạo sản phẩm → <code>pending_review</code> chạy lại được trên Postgres, test xanh trong CI.</div></div>
+<div class="ph"><b>M1: Lõi và render</b> <span class="when">tuần 2-3</span>
+<label><input type="checkbox"><span>Schema JSON v4 + validator, Tts (Edge, có interface để đổi), phụ đề, ghép cảnh, nhạc</span></label>
+<label><input type="checkbox"><span>Cảnh ảnh có <code>motion</code> bằng zoompan</span></label>
+<label><input type="checkbox"><span>Cache TTS theo <code>tts_key</code>, cache cảnh theo <code>scene_hash</code> đủ đầu vào, <code>RENDER_PRESET_VERSION</code>, lệnh <code>cache:gc</code> <span class="new">v4</span></span></label>
+<div class="done"><b>Xong khi:</b> JSON 3 cảnh ra video dọc có chuyển động, giọng, phụ đề; render lần 2 dùng lại cache.</div></div>
+<div class="ph"><b>M2: AI viết kịch bản</b> <span class="when">tuần 4</span>
+<label><input type="checkbox"><span><code>generateScript</code> (Cloudflare qua <code>callProvider</code>), ép đúng schema, mẫu hook, <code>imagePrompt</code> tiếng Anh</span></label>
+<label><input type="checkbox"><span>Lấy ảnh sản phẩm, gắn motion theo vai trò cảnh; hết hạn mức thì dời job</span></label>
+<label><input type="checkbox"><span>Render preview tự động sau <code>auto_check</code></span></label>
+<div class="done"><b>Xong khi:</b> một sản phẩm ra được nháp có video xem thử.</div></div>
+<div class="ph"><b>M3: Thư viện template</b> <span class="when">tuần 5</span>
+<label><input type="checkbox"><span>Bảng <code>template</code>, nạp 3 template hệ thống đầu (vấn đề rồi giải pháp, 3 lý do nên mua, mẹo công nghệ)</span></label>
+<label><input type="checkbox"><span>Bước gợi ý góc tiếp cận từ <code>ideaPrompt</code>; chế độ hàng loạt tự chọn góc đầu tiên</span></label>
+<label><input type="checkbox"><span><code>scriptPrompt</code> với biến sản phẩm, góc, giọng, thời lượng, <code>ctaRule</code>; đầu ra có <code>imagePrompt</code> và qua validator</span></label>
+<label><input type="checkbox"><span>Cảnh <code>ai_image</code> qua Flux (4 bước), ước tính neurons, cache theo <code>image_key</code></span></label>
+<label><input type="checkbox"><span>Ghi <code>template_id</code> và <code>template_version</code> vào video; thử mỗi template với khoảng 10 sản phẩm</span></label>
+<div class="done"><b>Xong khi:</b> người dùng chưa có ý tưởng vẫn tạo được video chỉ bằng chọn sản phẩm và template.</div></div>
+<div class="ph"><b>M4: Mascot</b> <span class="when">tuần 6</span>
+<label><input type="checkbox"><span>Thiết kế một nhân vật 2D, dựng 7-8 hành động nền trong suốt</span></label>
+<label><input type="checkbox"><span>Lưu vào <code>asset</code> (<code>mascot_action</code>, có <code>mascot_id</code>), overlay bằng FFmpeg theo <code>from</code> và <code>to</code></span></label>
+<label><input type="checkbox"><span>AI chọn hành động theo vai trò cảnh; validator chặn mascot ở demo/proof</span></label>
+<div class="done"><b>Xong khi:</b> video có mascot dẫn chuyện, sản phẩm vẫn rõ, không đè phụ đề.</div></div>
+<div class="ph"><b>M5: Clip AI có kiểm soát</b> <span class="when">tuần 7</span>
+<label><input type="checkbox"><span>Provider cho <code>ai_clip</code>, giới hạn số lượng và độ dài, ước tính chi phí, nhắc nhãn AI</span></label></div>
+<div class="ph"><b>M6: Hàng loạt và tự kiểm tra</b> <span class="when">tuần 8</span>
+<label><input type="checkbox"><span><code>batch</code> + <code>batch_item</code>, job rải theo hạn mức, luật cứng</span></label>
+<label><input type="checkbox"><span>Chấm điểm LLM và tự sửa sau cờ <code>auto_score</code>/<code>auto_revise</code>, mặc định tắt <span class="new">v4</span></span></label>
+<div class="done"><b>Xong khi:</b> chọn 10 sản phẩm, sáng ra có bản nháp kèm preview; bật <code>auto_score</code> thì có điểm.</div></div>
+<div class="ph"><b>M7: Vòng duyệt và phiên bản</b> <span class="when">tuần 9</span>
+<label><input type="checkbox"><span>Ghi chú theo cảnh (<code>review_note</code>), khóa cảnh, sửa tay một cảnh thì tự khóa (<code>lock = user_edit</code>), <code>ScenePatch</code> + validator, version, diff, restore</span></label>
+<label><input type="checkbox"><span>Cổng duyệt theo <code>approved_version_id</code>; sửa sau khi duyệt thì quay về <code>pending_review</code>; ghi <code>audit_log</code></span></label>
+<label><input type="checkbox"><span>CLI duyệt dùng được trước khi có web</span></label></div>
+<div class="ph"><b>M8: Review inbox (web)</b> <span class="when">tuần 10-12</span>
+<label><input type="checkbox"><span>API Fastify; Nuxt: danh sách, preview, timeline, duyệt/từ chối/ghi chú, phím tắt</span></label>
+<label><input type="checkbox"><span>Sửa chữ, thay ảnh, đổi hành động mascot tại chỗ; timeline có làn cảnh, phụ đề, mascot, nhạc</span></label></div>
+<div class="ph"><b>M9: Xuất bản, số liệu, A/B</b> <span class="when">sau M8</span>
+<label><input type="checkbox"><span>Gói xuất (video, caption, hashtag, link); ghi <code>publication</code> + URL bài đăng</span></label>
+<label><input type="checkbox"><span>Nhập tay <code>metric_snapshot</code> trước; nối insight Meta/TikTok sau khi app được duyệt</span></label>
+<label><input type="checkbox"><span><code>experiment</code> + <code>experiment_variant</code>; view hiệu quả theo template và hook</span></label></div>
+<div class="ph"><b>M10: Thương mại hóa</b> <span class="new">v4</span> <span class="when">khi kênh của mình đã có đơn đều</span>
+<label><input type="checkbox"><span>Đăng nhập thật (đăng ký, đăng nhập, quên mật khẩu), bỏ basic auth; giao diện workspace, mời thành viên, vai trò</span></label>
+<label><input type="checkbox"><span>TTS có license thương mại thay Edge TTS; kiểm tra license Remotion, Flux và model chữ</span></label>
+<label><input type="checkbox"><span>Storage S3/R2; <code>provider_credential</code> mã hóa (cho khách dùng khóa riêng) hoặc hạn mức theo gói</span></label>
+<label><input type="checkbox"><span>Tính giá vốn mỗi video từ <code>ai_call_log</code>; gói giá, thanh toán</span></label>
+<label><input type="checkbox"><span>Deploy VPS + sao lưu <code>pg_dump</code> + thử khôi phục; giám sát lỗi (Sentry)</span></label>
+<label><input type="checkbox"><span>Điều khoản sử dụng, chính sách dữ liệu</span></label></div>
+
+<h2>12. Việc nên làm sớm, song song</h2>
+<h3>Kiểm chứng thị trường song song với lúc code <span class="new">v4</span></h3>
+<ul>
+<li><b>Tuần 1-3 (trong lúc làm M0.5–M1):</b> làm 10-15 video bằng tay (Claude/ChatGPT viết kịch bản, CapCut dựng), đăng đều 2-3 video/ngày, ghi số liệu vào Google Sheet theo đúng cột của <code>metric_snapshot</code> để sau nhập vào DB.</li>
+<li><b>Từ M2–M3:</b> chuyển dần sang video do tool làm. So số liệu video tay và video tool: đây là bài kiểm tra chất lượng thật của sản phẩm.</li>
+<li>Dùng kết quả để chọn template nào viết prompt trước, có cần mascot không, giọng nào ổn.</li>
+<li><b>Điểm dừng để xem lại:</b> sau 30-50 video mà click hoặc đơn gần như bằng 0 thì đổi ngách hoặc định dạng trước khi code thêm tính năng.</li>
+</ul>
+<h3>Việc khác</h3>
+<ul>
+<li>Nộp đăng ký app TikTok developer, tạo Meta app.</li>
+<li>Chốt nguồn ảnh sản phẩm (tự chụp hoặc xin phép shop) để tránh vướng bản quyền.</li>
+<li>Viết và thử 3 template đầu bằng prompt tiếng Việt với khoảng 10 sản phẩm.</li>
+<li>Chốt thiết kế mascot (người que, robot hay đồ vật nhân hóa) và vẽ bản vector bằng Figma hoặc Inkscape.</li>
+<li>Giọng đọc: Edge TTS cho giai đoạn dùng cá nhân. Song song nghe thử các TTS có license thương mại có giọng tiếng Việt và ghi lại giá, để sẵn cho M10.</li>
+<li>Đọc repo MoneyPrinterTurbo 1-2 giờ chỉ để tham khảo cách chia bước, không dùng làm lõi.</li>
+</ul>
+
+<h2>13. Kiểm thử và tiêu chí hoàn thành</h2>
+<ul>
+<li><b>Unit:</b> validator schema và <code>ScenePatch</code>, tính thời lượng, hash cache (đổi một đầu vào thì hash đổi), luật kiểm tra (gồm luật mascot và clip AI theo vai trò cảnh), cổng duyệt theo version.</li>
+<li><b>Integration (Postgres thật trong CI)</b> <span class="new">v4</span>: hai worker lấy job song song không trùng; job hết <code>locked_until</code> quay lại hàng đợi; <code>idempotency_key</code> chặn job trùng; giữ chỗ <code>quota_usage</code> không vượt hạn mức khi chạy song song; truy vấn không lọt dữ liệu workspace khác.</li>
+<li><b>Render:</b> 3 bộ JSON mẫu, kiểm bằng <code>ffprobe</code>; kiểm tra mascot không đè vùng phụ đề.</li>
+<li><b>Template:</b> mỗi template qua thử với khoảng 10 sản phẩm; kịch bản đúng schema, qua luật cứng, cảnh demo/proof không có ảnh AI.</li>
+<li><b>Hàng loạt:</b> chạy thử 10 sản phẩm, dừng và tiếp tục đúng khi hết hạn mức.</li>
+<li><b>Tiêu chí:</b> một buổi duyệt xử lý được cả lô nháp, video đăng được, chi phí AI trong ngân sách, sửa theo góp ý không phải render lại toàn bộ.</li>
+</ul>
+
+<h2>14. Rủi ro và việc cần chốt</h2>
+<ul>
+<li><b>Nền tảng giảm lượt hiển thị video na ná nhau</b> <span class="new">v4</span>: video ảnh + TTS cùng một khuôn dễ bị coi là "không nguyên bản". Đa dạng template, giọng, nhịp; trộn clip tự quay; kiểm chứng sớm theo mục 12.</li>
+<li><b>Mascot làm giảm độ tin cậy nếu lạm dụng:</b> giữ ảnh sản phẩm thật là chính, kiểm chứng bằng A/B.</li>
+<li><b>Chất lượng kịch bản từ model miễn phí không đều:</b> mẫu hook, duyệt tay, bật chấm điểm khi lượng video tăng; cân nhắc model lớn hơn.</li>
+<li><b>Mệt vì duyệt quá nhiều:</b> ngưỡng điểm, giới hạn số bản vào hộp duyệt mỗi ngày.</li>
+<li><b>Hết hạn mức chung:</b> chữ và ảnh dùng chung 10.000 neurons mỗi ngày; giữ chỗ qua <code>quota_usage</code>, theo dõi qua <code>ai_call_log</code>.</li>
+<li><b>Prompt tiếng Việt kém ổn định:</b> thử kỹ từng template, ép đầu ra theo schema.</li>
+<li><b>License khi thương mại hóa</b> <span class="new">v4</span>: Edge TTS là API không chính thức, không dùng được cho sản phẩm bán; Remotion phải mua license khi công ty quá 3 người; kiểm tra điều khoản Cloudflare Workers AI, Flux và model chữ khi bán dịch vụ cho người khác.</li>
+<li><b>Giá vốn khi có khách</b> <span class="new">v4</span>: hạn mức miễn phí chỉ đủ cho dùng cá nhân; phải tính giá vốn mỗi video trước khi đặt giá gói.</li>
+<li><b>Chốt:</b> thiết kế nhân vật mascot, nguồn ảnh sản phẩm, giọng mặc định, tên dự án.</li>
+</ul>
+</main>
+</body>
+</html>
