@@ -1,0 +1,960 @@
+<title>Affilio Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sidebar trên nền, khung làm việc là một tấm panel bo nhẹ; màn duyệt dùng 3 cột + timeline */
+:root{
+  --bg:#f4f4f9; --surface:#ffffff; --surface-2:#f3f3f8; --ink:#1b1b2e; --muted:#62657d; --line:#e2e2ee;
+  --accent:#4f46e5; --accent-ink:#ffffff; --accent-soft:#ecebfd;
+  --ok:#147a3c; --ok-soft:#e1f4e7; --warn:#a75a06; --warn-soft:#fcefd9; --bad:#c22a2a; --bad-soft:#fce5e5;
+  --info:#0c679f; --info-soft:#dff0fa; --neutral-soft:#ebebf2;
+  --phone-bg:#0c0c14; --phone-ink:#ffffff; --phone-sub:#ffe14d; --scrim:rgba(15,15,30,.45);
+  --shadow:0 1px 2px rgba(20,20,50,.06),0 8px 24px rgba(20,20,50,.06);
+  --f-ui:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e0e16; --surface:#16161f; --surface-2:#1d1d29; --ink:#e7e7f3; --muted:#9a9cb4; --line:#2a2a3a;
+  --accent:#8f89ff; --accent-ink:#0f0f1a; --accent-soft:#242250;
+  --ok:#4ad888; --ok-soft:#14301f; --warn:#f5b941; --warn-soft:#352812; --bad:#f47b7b; --bad-soft:#391818;
+  --info:#62b9ef; --info-soft:#122b3c; --neutral-soft:#262634; --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e0e16; --surface:#16161f; --surface-2:#1d1d29; --ink:#e7e7f3; --muted:#9a9cb4; --line:#2a2a3a;
+  --accent:#8f89ff; --accent-ink:#0f0f1a; --accent-soft:#242250;
+  --ok:#4ad888; --ok-soft:#14301f; --warn:#f5b941; --warn-soft:#352812; --bad:#f47b7b; --bad-soft:#391818;
+  --info:#62b9ef; --info-soft:#122b3c; --neutral-soft:#262634; --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:22px;font-weight:700} h2{font-size:16px;font-weight:600} h3{font-size:14px;font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-size:12.5px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+
+/* ---------- khung ứng dụng ---------- */
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px;min-height:100vh;
+  padding-block:12px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.side{position:sticky;top:12px;align-self:start;display:flex;flex-direction:column;gap:2px;height:calc(100vh - 24px);padding:4px 4px 8px}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 10px 16px;font-weight:700;font-size:16px}
+.logo{width:28px;height:28px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:13px;font-weight:700}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:500;min-height:38px}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.nav a .cnt{margin-left:auto;font-size:12px;background:var(--accent-soft);color:var(--accent);padding:0 7px;border-radius:99px;font-weight:600}
+.nav .sep{height:1px;background:var(--line);margin:8px 10px}
+.side .foot{margin-top:auto;padding:10px;font-size:12px;color:var(--muted)}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic.fill{fill:currentColor;stroke:none}
+
+.main{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:calc(100vh - 24px)}
+.top{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.top .menu{display:none}
+.chsw{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 4px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+.chsw select{border:0;background:transparent;font-weight:600;padding:4px 2px;max-width:220px}
+.plat{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:700;background:var(--ink);color:var(--surface)}
+.quota{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12.5px;color:var(--muted)}
+.meter{width:110px;height:6px;border-radius:99px;background:var(--neutral-soft);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.sample{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--warn-soft);color:var(--warn);font-weight:600}
+.view{padding:20px;display:flex;flex-direction:column;gap:20px;flex:1;min-width:0}
+.head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head .sub{color:var(--muted);margin-top:2px}
+.head .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- thành phần chung ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:500;white-space:nowrap;text-decoration:none}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.ok{background:var(--ok);color:var(--surface);border-color:transparent}
+.btn.bad{color:var(--bad);border-color:var(--bad-soft);background:var(--bad-soft)}
+.btn.sm{min-height:30px;padding:0 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+kbd{font-family:var(--f-mono);font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid currentColor;opacity:.75}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;background:var(--neutral-soft);color:var(--muted)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)} .chip.info{background:var(--info-soft);color:var(--info)}
+.chip.acc{background:var(--accent-soft);color:var(--accent)}
+.chip.spin::before{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.badge{font-size:11px;padding:1px 7px;border-radius:5px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.warn{border-color:var(--warn);color:var(--warn)} .badge.bad{border-color:var(--bad);color:var(--bad)} .badge.acc{border-color:var(--accent);color:var(--accent)}
+.card{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:16px;min-width:0}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))} .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tile .big{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:500;font-size:13px}
+.field .hint{font-size:12px;color:var(--muted)}
+.inp,select.inp,textarea.inp{width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+textarea.inp{min-height:84px;resize:vertical}
+.inp::placeholder{color:var(--muted);opacity:.8}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:10px 12px;background:var(--surface-2);white-space:nowrap}
+td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:middle}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
+.thumb{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none;
+  background:hsl(var(--h) 70% 88%);color:hsl(var(--h) 55% 30%)}
+:root[data-theme="dark"] .thumb{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .thumb{background:hsl(var(--h) 35% 24%);color:hsl(var(--h) 70% 82%)}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--surface-2)}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;cursor:pointer;min-height:30px;font-weight:500;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:40px 16px;color:var(--muted)}
+.empty .ic{width:32px;height:32px}
+.empty h3{color:var(--ink)}
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--neutral-soft),var(--surface-2),var(--neutral-soft));background-size:200% 100%;animation:sk 1.2s infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.err{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--r);background:var(--bad-soft);color:var(--bad)}
+.err .txt{color:var(--ink);flex:1}
+.warnbox{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+.warnbox span{color:var(--ink)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;padding:6px;border:1px solid var(--line);border-radius:8px;min-height:42px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 9px;border-radius:6px;background:var(--surface-2);font-size:13px}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag button{border:0;background:transparent;cursor:pointer;width:22px;height:22px;border-radius:4px;color:inherit;opacity:.7}
+.tag button:hover{opacity:1;background:var(--neutral-soft)}
+.tags input{border:0;outline:0;background:transparent;flex:1;min-width:120px;padding:4px}
+
+.toast{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast div{background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:9px;box-shadow:var(--shadow);font-weight:500;max-width:340px;animation:tin .2s ease-out}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+
+/* ---------- dashboard ---------- */
+.spark{width:100%;height:40px;display:block}
+.spark .a{fill:var(--accent-soft)} .spark .l{fill:none;stroke:var(--accent);stroke-width:2} .spark .d{fill:var(--accent)}
+.chrow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 70px 70px;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.chrow:first-of-type{border-top:0}
+.hook-quote{font-size:17px;font-weight:600;line-height:1.4;border-left:3px solid var(--accent);padding-left:12px}
+
+/* ---------- kênh / định hướng ---------- */
+.dir{display:grid;grid-template-columns:170px minmax(0,1fr) 330px;gap:20px;align-items:start}
+.dir-nav{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px}
+.dir-nav a{padding:6px 10px;border-radius:6px;color:var(--muted);text-decoration:none;font-size:13px;cursor:pointer}
+.dir-nav a:hover{background:var(--surface-2);color:var(--ink)}
+details.sec{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);scroll-margin-top:12px}
+details.sec summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:10px;font-weight:600}
+details.sec summary::-webkit-details-marker{display:none}
+details.sec summary .ic{transition:transform .15s;color:var(--muted)}
+details.sec[open] summary .ic{transform:rotate(90deg)}
+details.sec summary .muted{font-weight:400;font-size:12.5px;margin-left:auto}
+details.sec .body{padding:0 16px 16px;display:grid;gap:14px}
+.dir-side{position:sticky;top:12px;display:flex;flex-direction:column;gap:12px}
+pre.prompt{margin:0;white-space:pre-wrap;word-break:break-word;background:var(--surface-2);border-radius:8px;padding:12px;max-height:340px;overflow:auto;font-family:var(--f-mono);font-size:12px;line-height:1.55}
+.tokbar{height:6px;border-radius:99px;background:var(--neutral-soft);overflow:hidden}
+.tokbar i{display:block;height:100%;background:var(--ok)}
+.drawer-scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--surface);z-index:41;border-left:1px solid var(--line);
+  display:flex;flex-direction:column;padding:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) 16px;gap:14px;overflow:auto}
+.ver{border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer;display:grid;gap:2px}
+.ver.on{border-color:var(--accent);background:var(--accent-soft)}
+.diff{font-family:var(--f-mono);font-size:12px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.diff div{padding:3px 10px;white-space:pre-wrap}
+.diff .add{background:var(--ok-soft);color:var(--ok)} .diff .del{background:var(--bad-soft);color:var(--bad)}
+.voice-wave{display:inline-flex;gap:2px;align-items:center;height:18px}
+.voice-wave i{width:3px;background:var(--accent);border-radius:2px;animation:wv .8s infinite ease-in-out}
+.voice-wave i:nth-child(2){animation-delay:.1s}.voice-wave i:nth-child(3){animation-delay:.2s}.voice-wave i:nth-child(4){animation-delay:.3s}
+@keyframes wv{0%,100%{height:4px}50%{height:16px}}
+
+/* ---------- sản phẩm ---------- */
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:24px;text-align:center;color:var(--muted);display:grid;gap:6px;place-items:center;cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--line)}
+.dot.on{background:var(--ok)}
+
+/* ---------- batch ---------- */
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.pick label{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;cursor:pointer;min-height:56px}
+.pick label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.pick input{accent-color:var(--accent);width:16px;height:16px}
+.fmt-pick label{flex-direction:column;align-items:flex-start;gap:2px}
+.prog{height:6px;border-radius:99px;background:var(--neutral-soft);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .4s}
+
+/* ---------- hộp duyệt ---------- */
+.inbox{display:grid;grid-template-columns:270px minmax(0,1fr) 330px;grid-template-areas:"list stage panel" "list tl tl";gap:16px;align-items:start}
+.ib-list{grid-area:list;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ib-stage{grid-area:stage;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+.ib-panel{grid-area:panel;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ib-tl{grid-area:tl;min-width:0}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.filters select{min-height:34px;font-size:13px;padding:4px 8px}
+.grp{font-size:12px;font-weight:600;color:var(--muted);padding:8px 2px 2px;display:flex;align-items:center;gap:8px}
+.item{display:grid;gap:4px;padding:10px;border-radius:9px;border:1px solid transparent;cursor:pointer;text-align:left;background:transparent;width:100%}
+.item:hover{background:var(--surface-2)}
+.item.on{border-color:var(--accent);background:var(--accent-soft)}
+.item .t{font-weight:500;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item .m{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.var{font-family:var(--f-mono);font-size:11px;font-weight:600;padding:0 6px;border-radius:4px;background:var(--ink);color:var(--surface)}
+.phone{width:min(270px,100%);aspect-ratio:9/19;max-width:100%;border-radius:34px;padding:10px;background:var(--phone-bg);box-shadow:var(--shadow);border:1px solid var(--line)}
+.screen{position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;color:var(--phone-ink);
+  background:radial-gradient(120% 70% at 50% 35%,hsl(var(--h) 45% 32%),hsl(var(--h) 35% 10%))}
+.ph-top{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;font-size:11px;opacity:.85}
+.ph-hook{position:absolute;top:42px;left:12px;right:12px;font-weight:700;font-size:15px;line-height:1.25;text-align:center;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.ph-visual{position:absolute;top:30%;left:50%;transform:translateX(-50%);width:58%;aspect-ratio:1;border-radius:18px;display:grid;place-items:center;
+  background:hsl(var(--h) 60% 80%);color:hsl(var(--h) 60% 20%);font-weight:700;font-size:28px;transition:transform .3s}
+.ph-visual small{position:absolute;bottom:-22px;font-size:10px;color:var(--phone-ink);opacity:.75;font-weight:500;white-space:nowrap}
+.ph-sub{position:absolute;bottom:62px;left:12px;right:12px;text-align:center;font-weight:700;font-size:16px;line-height:1.25;color:var(--phone-sub);
+  text-shadow:0 0 1px #000,0 2px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000}
+.mascot{position:absolute;bottom:110px;left:10px;width:46px;height:46px;border-radius:50%;background:#f4a340;border:2px solid #fff}
+.mascot::before,.mascot::after{content:"";position:absolute;top:-8px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid #f4a340}
+.mascot::before{left:3px;transform:rotate(-18deg)} .mascot::after{right:3px;transform:rotate(18deg)}
+.mascot i{position:absolute;top:17px;width:6px;height:8px;border-radius:50%;background:#1a1a1a}
+.mascot i:first-child{left:12px} .mascot i:last-child{right:12px}
+.mascot.talk{animation:bob .5s infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.ph-bar{position:absolute;bottom:18px;left:14px;right:14px;height:3px;border-radius:2px;background:rgba(255,255,255,.25)}
+.ph-bar i{display:block;height:100%;background:var(--phone-ink);border-radius:2px}
+.ph-play{position:absolute;inset:0;border:0;background:transparent;cursor:pointer}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.actions .btn{min-height:42px}
+.score{display:flex;align-items:center;gap:14px}
+.ring{--v:80;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:18px;
+  background:radial-gradient(closest-side,var(--surface) 76%,transparent 78%),conic-gradient(var(--accent) calc(var(--v)*1%),var(--neutral-soft) 0)}
+.bars{display:grid;gap:6px;flex:1}
+.bars div{display:grid;grid-template-columns:100px 1fr 28px;gap:8px;align-items:center;font-size:12px}
+.hb{height:6px;border-radius:99px;background:var(--neutral-soft);overflow:hidden}
+.hb i{display:block;height:100%;background:var(--accent)}
+.rule{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:4px 0}
+.rule .ic{width:16px;height:16px;margin-top:2px}
+.rule.ok .ic{color:var(--ok)} .rule.bad .ic{color:var(--bad)} .rule.warn .ic{color:var(--warn)}
+.script{font-size:13px;display:grid;gap:6px}
+.script p{padding-left:10px;border-left:2px solid var(--line)}
+.script p.cur{border-color:var(--accent);color:var(--ink);font-weight:500}
+.tl{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+.tl button{flex:none;min-width:90px;text-align:left;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;display:grid;gap:2px;font-size:12px}
+.tl button.cur{border-color:var(--accent);background:var(--accent-soft)}
+.tl button b{font-weight:600;font-size:12.5px;display:flex;gap:4px;align-items:center}
+.notebox{display:grid;gap:8px;padding:12px;border-radius:9px;background:var(--accent-soft)}
+.kbd-help{font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+
+/* ---------- editor ---------- */
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.lanes{display:grid;grid-template-columns:76px minmax(0,1fr);gap:6px 10px;align-items:center;overflow-x:auto}
+.lane{position:relative;height:40px;border-radius:7px;background:var(--surface-2);min-width:520px}
+.ruler{position:relative;height:18px;min-width:520px;font-size:10.5px;color:var(--muted)}
+.ruler span{position:absolute;top:0;transform:translateX(-50%)}
+.blk{position:absolute;top:4px;bottom:4px;border-radius:5px;padding:2px 6px;font-size:11px;line-height:1.25;overflow:hidden;cursor:pointer;border:1px solid transparent;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;text-overflow:ellipsis}
+.blk.scene{background:var(--accent-soft);color:var(--accent)} .blk.sub{background:var(--warn-soft);color:var(--warn)}
+.blk.mas{background:var(--ok-soft);color:var(--ok)} .blk.mus{background:var(--info-soft);color:var(--info)}
+.blk.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.blk .ic{width:12px;height:12px}
+
+/* ---------- formats / publish ---------- */
+.fmt{display:flex;flex-direction:column;gap:12px}
+.struct{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:13px}
+.struct b{font-weight:600;color:var(--muted);font-size:12px}
+.kpis{display:flex;gap:20px;border-top:1px solid var(--line);padding-top:12px;margin-top:auto}
+.kpis div{display:grid}
+.kpis strong{font-size:18px}
+.copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.copy .box{background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-word;user-select:all}
+.hbar{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:13px;padding:4px 0}
+.hbar .hb{height:12px;border-radius:4px}
+.hbar .hb i{border-radius:4px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1240px){
+  .inbox{grid-template-columns:250px minmax(0,1fr);grid-template-areas:"list stage" "list panel" "tl tl"}
+  .dir{grid-template-columns:minmax(0,1fr) 300px} .dir-nav{display:none}
+}
+@media (max-width:980px){
+  .dir,.ed{grid-template-columns:minmax(0,1fr)} .dir-side{position:static}
+  .g3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  .side{position:fixed;z-index:45;top:0;left:0;bottom:0;height:auto;width:260px;background:var(--bg);border-right:1px solid var(--line);
+    padding:calc(12px + env(safe-area-inset-top,0px)) 8px calc(12px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));transform:translateX(-105%);transition:transform .2s}
+  .side.open{transform:none}
+  .top .menu{display:inline-flex}
+  .inbox{grid-template-columns:minmax(0,1fr);grid-template-areas:"list" "stage" "panel" "tl"}
+  .view{padding:16px}
+}
+@media (max-width:620px){
+  .g3,.g2{grid-template-columns:minmax(0,1fr)}
+  .quota .meter{width:60px}
+  .chrow{grid-template-columns:minmax(0,1fr) 90px}
+  .chrow .hide-sm{display:none}
+  .hbar{grid-template-columns:100px minmax(0,1fr) 46px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand"><span class="logo">Af</span>Affilio</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="foot">Bản demo để duyệt giao diện. Mọi số liệu là ví dụ.</div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="btn sm ghost menu" data-act="menu" aria-label="Mở menu"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="chsw"><span class="plat" id="plat">TT</span>
+        <label for="chSel" class="lbl" style="position:absolute;left:-9999px">Kênh đang làm</label>
+        <select id="chSel"></select></div>
+      <span class="sample">Dữ liệu mẫu</span>
+      <div class="quota" title="Quota AI hôm nay"><span>Quota AI hôm nay</span><span class="meter"><i id="qbar" style="width:62%"></i></span><b class="num" id="qtxt">6.200 / 10.000</b></div>
+      <button class="btn sm ghost" data-act="theme" id="themeBtn" aria-label="Đổi giao diện sáng/tối"></button>
+    </header>
+    <main class="view" id="view"></main>
+  </div>
+</div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<div id="layer"></div>
+
+<script>
+/* ===================== dữ liệu mẫu ===================== */
+const ICONS={
+  home:'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  inbox:'M3 13h5l2 3h4l2-3h5M5 5h14l2 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z',
+  tv:'M4 6h16v11H4zM8 21h8M12 17v4',
+  target:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  box:'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10',
+  layers:'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5',
+  film:'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4',
+  grid:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  send:'M4 12l16-8-6 16-3-7-7-1z',
+  sliders:'M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M7 16v4',
+  lock:'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3',
+  check:'M5 12l5 5 9-10', x:'M6 6l12 12M18 6L6 18', pen:'M4 20h4L19 9l-4-4L4 16z',
+  moon:'M20 14a8 8 0 1 1-10-10 7 7 0 0 0 10 10z', sun:'M12 4V2M12 22v-2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  auto:'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',
+  copy:'M8 8h12v12H8zM4 16V4h12', history:'M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2', plus:'M12 5v14M5 12h14',
+  mic:'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',
+  upload:'M12 16V4M7 9l5-5 5 5M4 20h16', alert:'M12 3l10 18H2zM12 10v5M12 18v.5', refresh:'M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5',
+  spark:'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6',
+  chev:'M9 6l6 6-6 6', play:'M7 5l12 7-12 7z', pause:'M7 5h3v14H7zM14 5h3v14h-3z', search:'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4', dup:'M8 8h12v12H8zM4 16V4h12'
+};
+const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[n]}"/></svg>`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const vnd=n=>n.toLocaleString('vi-VN')+'đ';
+const nf=n=>n.toLocaleString('vi-VN');
+
+const STATUS={
+  queued:['Chờ xử lý',''], drafting:['AI đang viết','info spin'], previewing:['Đang dựng preview','info spin'],
+  pending_review:['Chờ duyệt','acc'], needs_changes:['Cần sửa','warn'], revising:['AI đang sửa','info spin'],
+  approved:['Đã duyệt','ok'], rendering:['Đang render','info spin'], ready:['Sẵn sàng đăng','ok'],
+  published:['Đã đăng','ok'], failed:['Lỗi','bad'], rejected_auto:['Loại tự động','bad'], rejected:['Đã loại','']
+};
+const chip=s=>`<span class="chip ${STATUS[s][1]}">${STATUS[s][0]}</span>`;
+
+const CHANNELS=[
+  {id:'c1',name:'Mèo Review Công Nghệ',handle:'@meo.review.congnghe',platform:'TikTok',niche:'Đồ công nghệ dưới 500k',cats:['Công nghệ','Phụ kiện'],published:42,status:'active',version:3,views:[12,18,15,22,31,27,38],cpm:6.8},
+  {id:'c2',name:'Bếp Nhà Tiết Kiệm',handle:'@bep.nha.tietkiem',platform:'TikTok',niche:'Đồ bếp gia dụng giá rẻ',cats:['Nhà bếp','Gia dụng'],published:18,status:'active',version:2,views:[5,7,6,9,8,12,11],cpm:4.9},
+  {id:'c3',name:'Deal Mỗi Ngày',handle:'@dealmoingay',platform:'Reels',niche:'Deal tổng hợp trong ngày',cats:['Công nghệ','Nhà bếp','Gia dụng','Phụ kiện'],published:7,status:'paused',version:1,views:[2,1,3,2,0,0,0],cpm:2.1}
+];
+const PRODUCTS=[
+  {id:'p1',name:'Tai nghe không dây TWS X15',cat:'Công nghệ',price:289000,link:'s.shopee.vn/x15-demo',clip:true,h:230,facts:['Pin thực tế 5 tiếng, không phải 8 như quảng cáo','Chống ồn chỉ ở mức cơ bản, đi xe máy vẫn nghe tiếng gió','Mic gọi điện rõ, hơn hẳn mấy mẫu cùng giá']},
+  {id:'p2',name:'Sạc dự phòng mini 10.000mAh',cat:'Công nghệ',price:199000,link:'s.shopee.vn/sacmini-demo',clip:true,h:150,facts:['Nhỏ bằng thẻ ATM, bỏ túi quần được','Sạc nhanh 20W cho iPhone, Android chỉ 18W','Sạc đầy pin mất gần 3 tiếng']},
+  {id:'p3',name:'Đèn bàn LED kẹp 3 chế độ',cat:'Phụ kiện',price:149000,link:'s.shopee.vn/denkep-demo',clip:false,h:45,facts:['Kẹp chắc vào bàn dày 4cm','Ánh sáng vàng dịu, đọc lâu không mỏi','Dây cắm USB hơi ngắn, nên mua thêm dây']},
+  {id:'p4',name:'Bàn phím cơ 68 phím',cat:'Công nghệ',price:459000,link:'s.shopee.vn/phim68-demo',clip:true,h:280,facts:['Switch đỏ, gõ êm, ít ồn','Kết nối 3 chế độ: dây, Bluetooth, 2.4G','Keycap in, dùng lâu sẽ mờ chữ']},
+  {id:'p5',name:'Nồi chiên không dầu 4L',cat:'Nhà bếp',price:690000,link:'s.shopee.vn/noichien-demo',clip:true,h:20,facts:['Lòng nồi 4L vừa cho 3 người ăn','Chống dính tốt, rửa dễ','Mặt kính không có, phải mở ra xem']},
+  {id:'p6',name:'Máy xay cầm tay mini',cat:'Nhà bếp',price:175000,link:'s.shopee.vn/mayxay-demo',clip:false,h:340,facts:['Xay sinh tố đá nhỏ ổn','Sạc USB-C, 1 lần sạc xay 12 cốc','Không xay được đá viên to']},
+  {id:'p7',name:'Kệ để gia vị xoay 360°',cat:'Gia dụng',price:129000,link:'s.shopee.vn/kexoay-demo',clip:false,h:100},
+  {id:'p8',name:'Chuột không dây click im lặng',cat:'Công nghệ',price:119000,link:'s.shopee.vn/chuot-demo',clip:false,h:200}
+];
+const P=id=>PRODUCTS.find(p=>p.id===id);
+const C=id=>CHANNELS.find(c=>c.id===id);
+
+function makeScenes(d){
+  const p=P(d.product), f=p.facts||['Điểm 1','Điểm 2','Điểm 3'];
+  return [
+    {kind:'Hook',text:d.hook,dur:3,visual:d.badges.includes('AI images')?'Ảnh AI':'Clip tự quay',mascot:'Ngạc nhiên',locked:false},
+    {kind:'Ý 1',text:f[0],dur:5,visual:'Ảnh sản phẩm',mascot:'Chỉ tay',locked:d.id==='d1'},
+    {kind:'Ý 2',text:f[1],dur:5,visual:'Clip tự quay',mascot:'Lắc đầu',locked:false},
+    {kind:'Ý 3',text:f[2],dur:5,visual:'Ảnh sản phẩm',mascot:'Gật đầu',locked:false},
+    {kind:'CTA',text:'Giá hôm nay '+vnd(p.price)+'. Link ở bio, xem kỹ điểm 2 trước khi mua nha.',dur:4,visual:'Ảnh sản phẩm + giá',mascot:'Vẫy tay',locked:false}
+  ];
+}
+const DRAFTS=[
+  {id:'d1',product:'p1',channel:'c1',variant:'A',format:'Đừng mua khi chưa biết',hook:'Tai nghe 289k chống ồn? Đừng mua khi chưa xem cái này',status:'pending_review',score:82,parts:[86,80,84],badges:['my voice'],profile:3,ago:'12 phút'},
+  {id:'d2',product:'p1',channel:'c1',variant:'B',format:'Đừng mua khi chưa biết',hook:'3 điều shop không nói về tai nghe X15',status:'pending_review',score:74,parts:[70,78,75],badges:['AI images'],profile:3,ago:'12 phút',
+    rules:[{t:'bad',m:'Câu "tốt nhất tầm giá" vi phạm chính sách khẳng định của kênh'}]},
+  {id:'d3',product:'p1',channel:'c1',variant:'C',format:'Đừng mua khi chưa biết',hook:'Mình dùng X15 được 2 tuần, đây là sự thật',status:'needs_changes',score:61,parts:[55,66,62],badges:[],profile:3,ago:'1 giờ',note:'Hook dài quá, cắt còn dưới 8 chữ.'},
+  {id:'d4',product:'p2',channel:'c1',variant:'A',format:'Đoán giá',hook:'Cục sạc bằng thẻ ATM này giá bao nhiêu?',status:'pending_review',score:88,parts:[92,85,87],badges:['old channel direction','my voice'],profile:2,ago:'2 giờ'},
+  {id:'d5',product:'p2',channel:'c1',variant:'B',format:'Đoán giá',hook:'Đoán giá: sạc 10.000mAh nhỏ nhất mình từng cầm',status:'failed',score:0,parts:[0,0,0],badges:['failed, retry'],profile:3,ago:'2 giờ',error:'Render cảnh 3 lỗi: thiếu file clip "sac-cam-tay.mp4".'},
+  {id:'d6',product:'p3',channel:'c1',variant:'A',format:'Top 3 dưới giá',hook:'Top 3 đèn bàn dưới 200k, số 1 làm mình bất ngờ',status:'pending_review',score:79,parts:[81,77,79],badges:['AI images'],profile:3,ago:'3 giờ'},
+  {id:'d7',product:'p3',channel:'c1',variant:'B',format:'Top 3 dưới giá',hook:'Đèn kẹp 149k: mua hay bỏ?',status:'approved',score:83,parts:[80,85,84],badges:[],profile:3,ago:'hôm qua'},
+  {id:'d8',product:'p4',channel:'c1',variant:'A',format:'A hay B',hook:'Phím cơ 459k hay 900k, nghe tiếng gõ là biết',status:'revising',score:70,parts:[72,68,70],badges:['my voice'],profile:3,ago:'5 phút'},
+  {id:'d9',product:'p5',channel:'c2',variant:'A',format:'Đừng mua khi chưa biết',hook:'Nồi chiên 690k, 3 điều phải biết trước khi xuống tiền',status:'pending_review',score:85,parts:[84,86,85],badges:['my voice'],profile:2,ago:'40 phút'},
+  {id:'d10',product:'p5',channel:'c2',variant:'B',format:'A hay B',hook:'Nồi chiên 4L hay 6L cho nhà 3 người?',status:'pending_review',score:70,parts:[66,72,72],badges:['AI images'],profile:2,ago:'40 phút'},
+  {id:'d11',product:'p6',channel:'c2',variant:'A',format:'Tin deal',hook:'Máy xay cầm tay đang giảm còn 175k',status:'ready',score:81,parts:[78,83,82],badges:[],profile:2,ago:'hôm qua'},
+  {id:'d12',product:'p2',channel:'c1',variant:'A',format:'Tin deal',hook:'Deal sạc mini còn 199k tới 12h trưa',status:'ready',score:84,parts:[85,83,84],badges:['my voice'],profile:3,ago:'hôm qua'}
+];
+DRAFTS.forEach(d=>{d.scenes=makeScenes(d)});
+
+const PROFILES={
+  c1:{positioning:'Kênh review đồ công nghệ dưới 500k, nói thẳng điểm yếu trước khi khen.',audience:'Sinh viên và người mới đi làm 18–28 tuổi, ngân sách eo hẹp, sợ mua phải hàng dỏm.',
+    tone:'Thẳng thắn, hơi hài, không cường điệu',persona:'Mèo xưng "tui", gọi người xem là "mấy bà"',pillars:['Đừng mua khi chưa biết','Top 3 dưới giá','Đoán giá','Mẹo dùng đồ công nghệ'],
+    banned:['rẻ nhất','tốt nhất thị trường','cam kết','100%'],bannedTopics:['chính trị','so sánh hạ thấp shop khác'],claim:'Chỉ nói thông số đã tự kiểm chứng; số liệu từ shop phải ghi "theo shop".',
+    ctaStyle:'Nhẹ nhàng',ctaPhrases:'Link ở bio nha; Xem kỹ trước khi mua',durMin:15,durMax:25,formats:['Đừng mua khi chưa biết','Top 3 dưới giá','Đoán giá'],voice:'Giọng nữ miền Nam (HoaiMy)',mascot:'Mèo cam',music:'Lo-fi vui',
+    series:'Đồ rẻ có đáng không?',episode:24,hashtags:['#review','#congnghe','#dore','#hoclammeo'],caption:'{hook}\nTập {episode} · {series}\nGiá tham khảo: {price}\n#review #congnghe',times:'11:30, 20:00',
+    examples:'Hook: Tai nghe 199k mà chống ồn? Tui thử rồi.\nÝ: Pin thật 4 tiếng. Đeo lâu đau tai. Mic gọi được.\nCTA: Link ở bio, nhớ coi điểm 2 nha.'},
+  c2:{positioning:'Đồ bếp giá rẻ cho gia đình trẻ, ưu tiên món dễ làm.',audience:'Nội trợ 25–40 tuổi, nấu cho 2–4 người.',tone:'Ấm áp, thực tế',persona:'Xưng "mình", gọi "cả nhà"',pillars:['Đồ bếp dưới 300k','Thử món nhanh'],banned:['rẻ nhất','thần thánh'],bannedTopics:['ăn kiêng cực đoan'],claim:'Không nói về công dụng sức khỏe.',ctaStyle:'Nhẹ nhàng',ctaPhrases:'Link mình để ở bio',durMin:18,durMax:30,formats:['Đừng mua khi chưa biết','Tin deal'],voice:'Giọng nữ miền Bắc',mascot:'Không dùng',music:'Acoustic',series:'Bếp 200k',episode:9,hashtags:['#nhabep','#giadung'],caption:'{hook}\n#nhabep',times:'10:30, 17:30',examples:''},
+  c3:{positioning:'',audience:'',tone:'',persona:'',pillars:[],banned:[],bannedTopics:[],claim:'',ctaStyle:'Rõ ràng',ctaPhrases:'',durMin:15,durMax:20,formats:['Tin deal'],voice:'Giọng nam miền Nam',mascot:'Mèo cam',music:'Sôi động',series:'',episode:1,hashtags:[],caption:'',times:'',examples:''}
+};
+const HISTORY={c1:[
+  {v:3,when:'Hôm qua 21:14',who:'Huy',sum:'Thêm từ cấm "100%", CTA nhẹ hơn',diff:[['del','CTA: Bấm link ngay kẻo hết!'],['add','CTA: Link ở bio nha; Xem kỹ trước khi mua'],['add','Từ cấm: + "100%"']]},
+  {v:2,when:'12/11 09:02',who:'Huy',sum:'Rút thời lượng xuống 15–25 giây',diff:[['del','Thời lượng: 20–35 giây'],['add','Thời lượng: 15–25 giây'],['add','Định dạng: + Đoán giá']]},
+  {v:1,when:'05/11 16:40',who:'Huy',sum:'Tạo kênh',diff:[['add','Bản đầu tiên']]}
+],c2:[{v:2,when:'14/11 10:20',who:'Lan',sum:'Thêm series "Bếp 200k"',diff:[['add','Series: Bếp 200k']]},{v:1,when:'08/11 08:00',who:'Huy',sum:'Tạo kênh',diff:[['add','Bản đầu tiên']]}],
+c3:[{v:1,when:'15/11 13:00',who:'Huy',sum:'Tạo kênh',diff:[['add','Bản đầu tiên']]}]};
+
+const FORMATS=[
+  {name:'Đừng mua khi chưa biết',hook:'Cảnh báo + giá',body:'3 điều thật, có 1 điểm yếu',cta:'Xem kỹ điểm yếu rồi hãy mua',use:'Sản phẩm 150k–700k, người mua hay phân vân',done:41,click:9.2},
+  {name:'Top 3 dưới giá',hook:'"Top 3 … dưới 200k"',body:'Đếm ngược 3→1, mỗi món 5 giây',cta:'Số mấy hợp với bạn?',use:'Ngách nhiều món giống nhau',done:36,click:11.4},
+  {name:'Đoán giá',hook:'Cầm sản phẩm, hỏi giá',body:'2 gợi ý rồi lật giá',cta:'Bình luận số bạn đoán',use:'Món nhìn đắt hơn giá thật',done:52,click:6.1},
+  {name:'A hay B',hook:'Hai món cạnh nhau',body:'3 tiêu chí, chấm từng cái',cta:'Bạn chọn A hay B?',use:'Hai mức giá chênh nhiều',done:38,click:8.3},
+  {name:'Tin deal',hook:'Giá cũ gạch, giá mới to',body:'1 lý do nên mua + hạn deal',cta:'Deal tới mấy giờ',use:'Flash sale, mã giảm giá',done:47,click:13.8},
+  {name:'Series đánh số',hook:'"Tập 24: …"',body:'Theo format gốc của series',cta:'Hẹn tập sau',use:'Giữ người xem quay lại',done:44,click:7.5}
+];
+
+/* ===================== trạng thái ===================== */
+const S={channel:'c1',sel:'d1',scene:0,t:0,playing:false,timer:null,noteOpen:false,filter:{status:'all',format:'all'},
+  prodView:'normal',prodQuery:'',files:[],batch:{products:['p1','p2','p3'],format:'auto',variants:2,running:false,items:[]},
+  drawer:false,histSel:0,dirty:false,saveOpen:false,testState:'idle',sampleProduct:'p1',voicePlaying:false,
+  edDraft:'d1',edScene:0,pubSel:'d12',pubUrl:'',pubTab:'format',budget:10000,confirmRestore:false};
+const prof=()=>PROFILES[S.channel];
+const chan=()=>C(S.channel);
+
+/* ===================== khung ===================== */
+const NAV=[
+  ['dashboard','home','Tổng quan'],['inbox','inbox','Hộp duyệt'],['batch','layers','Tạo loạt video'],['sep'],
+  ['channels','tv','Kênh'],['channel-edit','target','Định hướng kênh'],['products','box','Sản phẩm'],['formats','grid','Định dạng'],['sep'],
+  ['editor','film','Chỉnh video'],['publishing','send','Đăng & số liệu'],['workspace','sliders','Cài đặt']
+];
+function pendingCount(){return DRAFTS.filter(d=>d.channel===S.channel&&d.status==='pending_review').length}
+function renderNav(route){
+  document.getElementById('nav').innerHTML=NAV.map(n=>n[0]==='sep'?'<div class="sep"></div>':
+    `<a href="#${n[0]}" class="${route===n[0]?'on':''}" ${route===n[0]?'aria-current="page"':''}>${ic(n[1])}${n[2]}${n[0]==='inbox'?`<span class="cnt num">${pendingCount()}</span>`:''}</a>`).join('');
+}
+function renderTop(){
+  const sel=document.getElementById('chSel');
+  sel.innerHTML=CHANNELS.map(c=>`<option value="${c.id}" ${c.id===S.channel?'selected':''}>${esc(c.name)}</option>`).join('');
+  document.getElementById('plat').textContent=chan().platform==='TikTok'?'TT':'IG';
+  const mode=getTheme();
+  document.getElementById('themeBtn').innerHTML=ic(mode==='dark'?'moon':mode==='light'?'sun':'auto')+`<span class="hide-sm">${mode==='dark'?'Tối':mode==='light'?'Sáng':'Theo máy'}</span>`;
+}
+function toast(msg){const t=document.getElementById('toast');const d=document.createElement('div');d.textContent=msg;t.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function getTheme(){return document.documentElement.getAttribute('data-theme')||'system'}
+function setTheme(m){if(m==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',m);
+  try{localStorage.setItem('affilio-theme',m)}catch(e){/* bộ nhớ trình duyệt bị chặn: chỉ đổi trong phiên */}}
+try{const m=localStorage.getItem('affilio-theme');if(m)setTheme(m)}catch(e){/* không đọc được: dùng theo máy */}
+
+/* ===================== màn hình ===================== */
+function spark(vals){
+  const w=120,h=40,max=Math.max(...vals,1),step=w/(vals.length-1);
+  const pts=vals.map((v,i)=>[i*step,h-4-(v/max)*(h-10)]);
+  const line=pts.map(p=>p.join(',')).join(' ');
+  const last=pts[pts.length-1];
+  return `<svg class="spark" viewBox="-2 0 ${w+6} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon class="a" points="0,${h} ${line} ${w},${h}"/><polyline class="l" points="${line}"/><circle class="d" cx="${last[0]}" cy="${last[1]}" r="3"/></svg>`;
+}
+const V={};
+V.dashboard=()=>{
+  const pend=DRAFTS.filter(d=>d.status==='pending_review');
+  const ready=DRAFTS.filter(d=>d.status==='ready');
+  const failed=DRAFTS.filter(d=>d.status==='failed');
+  return `<div class="head"><div><h1>Chào buổi tối, Huy</h1><p class="sub">Thứ Sáu, 20/11 · ${pend.length} nháp đang chờ bạn duyệt</p></div>
+    <div class="act"><a class="btn" href="#batch">${ic('layers')}Tạo loạt mới</a><a class="btn pri" href="#inbox">${ic('inbox')}Mở hộp duyệt</a></div></div>
+  <div class="grid g3">
+    <a class="card tile" href="#inbox" style="text-decoration:none;color:inherit"><p class="lbl">Chờ duyệt</p><p class="big num">${pend.length}</p><p class="muted">Cũ nhất: 3 giờ trước</p></a>
+    <a class="card tile" href="#publishing" style="text-decoration:none;color:inherit"><p class="lbl">Sẵn sàng đăng</p><p class="big num">${ready.length}</p><p class="muted">Khung giờ tới: 20:00</p></a>
+    <div class="card tile"><p class="lbl">Quota AI còn hôm nay</p><p class="big num">38%</p><div class="meter" style="width:100%;margin:6px 0"><i style="width:62%"></i></div><p class="muted">Đủ cho khoảng 14 nháp nữa</p></div>
+  </div>
+  ${failed.length?`<div class="err">${ic('alert')}<div class="txt"><b>${failed.length} video bị lỗi khi render.</b> ${esc(failed[0].error)}</div><button class="btn sm" data-act="retry" data-id="${failed[0].id}">${ic('refresh')}Thử lại</button></div>`:''}
+  <div class="grid g2">
+    <section class="card"><div class="row" style="margin-bottom:6px"><h2>Lượt xem 7 ngày theo kênh</h2><span class="muted" style="margin-left:auto;font-size:12px">nghìn lượt</span></div>
+      ${CHANNELS.map(c=>`<div class="chrow"><div><b>${esc(c.name)}</b><div class="muted" style="font-size:12px">${c.platform} · ${esc(c.handle)}</div></div>
+        <div class="hide-sm">${spark(c.views)}</div><div class="num hide-sm" style="text-align:right"><b>${c.views.reduce((a,b)=>a+b,0)}k</b></div>
+        <div class="num" style="text-align:right">${c.cpm}<div class="muted" style="font-size:11px">click/1k</div></div></div>`).join('')}
+    </section>
+    <section class="card stack"><h2>Hook tốt nhất tuần</h2>
+      <p class="hook-quote">"Cục sạc bằng thẻ ATM này giá bao nhiêu?"</p>
+      <div class="row"><span class="badge">Đoán giá</span><span class="badge">Biến thể A</span><span class="badge">Mèo Review Công Nghệ</span></div>
+      <div class="grid g3" style="gap:8px"><div><p class="lbl">Xem hết</p><b class="num">58%</b></div><div><p class="lbl">Click/1k</p><b class="num">12,4</b></div><div><p class="lbl">So với B</p><b class="num" style="color:var(--ok)">+21%</b></div></div>
+      <p class="muted" style="font-size:13px">Gợi ý: dùng câu hỏi về giá ở hook cho 3 sản phẩm tiếp theo của kênh này.</p>
+    </section>
+  </div>`;
+};
+
+V.channels=()=>`<div class="head"><div><h1>Kênh</h1><p class="sub">Mỗi kênh có một bản định hướng riêng. AI viết kịch bản theo bản đó.</p></div>
+  <div class="act"><button class="btn pri" data-act="addChannel">${ic('plus')}Thêm kênh</button></div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Kênh</th><th>Ngách</th><th>Chờ duyệt</th><th>Đã đăng</th><th>Định hướng</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${CHANNELS.map(c=>{const pend=DRAFTS.filter(d=>d.channel===c.id&&d.status==='pending_review').length;
+    return `<tr class="click" data-act="openChannel" data-id="${c.id}"><td><div class="row" style="flex-wrap:nowrap"><span class="plat">${c.platform==='TikTok'?'TT':'IG'}</span><div><b>${esc(c.name)}</b><div class="muted" style="font-size:12px">${esc(c.handle)}</div></div></div></td>
+    <td>${esc(c.niche)}</td><td class="num">${pend}</td><td class="num">${c.published}</td><td><span class="badge acc">v${c.version}</span></td>
+    <td>${c.status==='active'?'<span class="chip ok">Đang chạy</span>':'<span class="chip">Tạm dừng</span>'}</td>
+    <td><button class="btn sm ghost" data-act="dupChannel" data-id="${c.id}">${ic('dup')}Nhân bản</button></td></tr>`}).join('')}
+  </tbody></table></div>
+  ${PROFILES.c3.positioning?'':`<div class="warnbox">${ic('alert')}<span><b>Deal Mỗi Ngày</b> chưa điền định vị và khán giả. Nháp của kênh này sẽ rất chung chung. <a href="#channel-edit" data-act="openChannel" data-id="c3">Điền định hướng</a></span></div>`}`;
+
+/* ---- định hướng kênh ---- */
+const SECS=[['pos','Định vị'],['aud','Khán giả'],['tone','Giọng & cách nói'],['pil','Trụ nội dung'],['ban','Từ & chủ đề cấm'],['cta','Kêu gọi hành động'],['fmt','Định dạng video'],['ser','Series'],['pub','Đăng bài'],['ex','Kịch bản mẫu']];
+function tagBox(key,ph,cls=''){
+  return `<div class="tags" data-tagbox="${key}">${prof()[key].map((t,i)=>`<span class="tag ${cls}">${esc(t)}<button data-act="rmTag" data-key="${key}" data-i="${i}" aria-label="Xoá ${esc(t)}">×</button></span>`).join('')}
+    <input id="tag-${key}" data-taginput="${key}" placeholder="${esc(ph)}"></div>`;
+}
+function fld(key,label,ph,type='input',hint=''){
+  const v=esc(prof()[key]);
+  return `<div class="field"><label for="f-${key}">${label}</label>${type==='textarea'?`<textarea class="inp" id="f-${key}" data-field="${key}" placeholder="${esc(ph)}">${v}</textarea>`:`<input class="inp" id="f-${key}" data-field="${key}" value="${v}" placeholder="${esc(ph)}">`}${hint?`<span class="hint">${hint}</span>`:''}</div>`;
+}
+function sel(key,label,opts){return `<div class="field"><label for="f-${key}">${label}</label><select class="inp" id="f-${key}" data-field="${key}">${opts.map(o=>`<option ${prof()[key]===o?'selected':''}>${o}</option>`).join('')}</select></div>`}
+function buildBrief(){
+  const p=prof(),c=chan(),pr=P(S.sampleProduct);
+  const L=[];
+  L.push(`[ĐỊNH HƯỚNG KÊNH] ${c.name} (${c.handle}) · v${c.version}${S.dirty?' + thay đổi chưa lưu':''}`);
+  L.push(`Ngách: ${c.niche}`);
+  if(p.positioning)L.push(`Định vị: ${p.positioning}`);
+  if(p.audience)L.push(`Khán giả: ${p.audience}`);
+  if(p.tone)L.push(`Giọng: ${p.tone}. ${p.persona}`);
+  if(p.pillars.length)L.push(`Trụ nội dung: ${p.pillars.join(', ')}`);
+  if(p.banned.length)L.push(`KHÔNG dùng từ: ${p.banned.join(', ')}`);
+  if(p.bannedTopics.length)L.push(`KHÔNG nói về: ${p.bannedTopics.join(', ')}`);
+  if(p.claim)L.push(`Khẳng định: ${p.claim}`);
+  L.push(`CTA (${p.ctaStyle}): ${p.ctaPhrases||'tự chọn'}`);
+  L.push(`Thời lượng ${p.durMin}–${p.durMax} giây. Định dạng ưu tiên: ${p.formats.join(', ')||'AI chọn'}`);
+  if(p.series)L.push(`Series: "${p.series}", tập ${p.episode}`);
+  if(p.examples)L.push(`Ví dụ giọng kênh:\n${p.examples}`);
+  L.push('');
+  L.push(`[SẢN PHẨM] ${pr.name} · ${vnd(pr.price)}`);
+  (pr.facts||[]).forEach(f=>L.push(`- ${f}`));
+  L.push('');
+  L.push('Viết kịch bản 5 cảnh: hook ≤ 8 chữ, 3 ý, 1 CTA. Trả JSON theo schema Scene.');
+  return L.join('\n');
+}
+function briefMeta(){
+  const txt=buildBrief(); const tok=Math.ceil(txt.length/3.6); const pct=Math.min(100,Math.round(tok/700*100));
+  return {txt,tok,pct};
+}
+V['channel-edit']=()=>{
+  const c=chan(),p=prof(),m=briefMeta();
+  const FMTS=FORMATS.map(f=>f.name);
+  return `<div class="head"><div><h1>Định hướng kênh</h1><p class="sub">${esc(c.name)} · ${esc(c.handle)} · đang dùng <b>v${c.version}</b></p></div>
+    <div class="act">${S.dirty?'<span class="chip warn">Chưa lưu</span>':''}<button class="btn" data-act="drawer">${ic('history')}Lịch sử phiên bản</button>
+    <button class="btn pri" data-act="saveOpen" ${S.dirty?'':'disabled'}>Lưu thành v${c.version+1}</button></div></div>
+  ${S.saveOpen?`<form class="card row" data-form="save" style="background:var(--accent-soft)"><div class="field" style="flex:1;min-width:220px"><label for="saveSum">Bạn đã đổi gì?</label>
+    <input class="inp" id="saveSum" placeholder="Ví dụ: thêm từ cấm, CTA nhẹ hơn" required></div><button class="btn pri" type="submit">Lưu v${c.version+1}</button><button class="btn ghost" type="button" data-act="saveCancel">Huỷ</button>
+    <p class="muted" style="flex-basis:100%;font-size:12.5px">Nháp đã tạo vẫn giữ v${c.version} và sẽ có nhãn "định hướng cũ". Nháp mới dùng v${c.version+1}.</p></form>`:''}
+  <div class="dir">
+    <nav class="dir-nav" aria-label="Các nhóm">${SECS.map(s=>`<a data-act="jump" data-id="${s[0]}">${s[1]}</a>`).join('')}</nav>
+    <div class="stack">
+      <details class="sec" id="sec-pos" open><summary>${ic('chev')}Định vị<span class="muted">Kênh này là ai, khác gì kênh khác</span></summary><div class="body">
+        ${fld('positioning','Một câu định vị','Ví dụ: Review đồ công nghệ dưới 500k, nói điểm yếu trước khi khen','textarea','AI đọc câu này đầu tiên. Viết như đang giới thiệu kênh cho bạn bè.')}</div></details>
+      <details class="sec" id="sec-aud" open><summary>${ic('chev')}Khán giả</summary><div class="body">
+        ${fld('audience','Người xem chính','Ví dụ: Sinh viên 18–24, ngân sách dưới 500k, sợ mua hàng dỏm','textarea')}</div></details>
+      <details class="sec" id="sec-tone" open><summary>${ic('chev')}Giọng & cách nói</summary><div class="body grid g2">
+        ${fld('tone','Giọng','Ví dụ: Thẳng thắn, hơi hài')}${fld('persona','Xưng hô','Ví dụ: Xưng "tui", gọi "mấy bà"')}</div></details>
+      <details class="sec" id="sec-pil" open><summary>${ic('chev')}Trụ nội dung<span class="muted">${p.pillars.length} trụ</span></summary><div class="body">
+        <div class="field"><label for="tag-pillars">Chủ đề kênh hay làm</label>${tagBox('pillars','Gõ rồi Enter, ví dụ: Top 3 dưới giá')}</div></div></details>
+      <details class="sec" id="sec-ban" open><summary>${ic('chev')}Từ & chủ đề cấm<span class="muted">Luật cứng, nháp vi phạm bị chặn</span></summary><div class="body">
+        <div class="field"><label for="tag-banned">Từ cấm</label>${tagBox('banned','Ví dụ: rẻ nhất','bad')}</div>
+        <div class="field"><label for="tag-bannedTopics">Chủ đề cấm</label>${tagBox('bannedTopics','Ví dụ: chính trị','bad')}</div>
+        ${fld('claim','Chính sách khẳng định','Ví dụ: Chỉ nói thông số đã tự kiểm chứng','input')}</div></details>
+      <details class="sec" id="sec-cta"><summary>${ic('chev')}Kêu gọi hành động</summary><div class="body grid g2">
+        ${sel('ctaStyle','Kiểu CTA',['Nhẹ nhàng','Rõ ràng','Gấp (deal có hạn)'])}${fld('ctaPhrases','Câu CTA hay dùng','Ví dụ: Link ở bio nha; Xem kỹ trước khi mua','input','Ngăn cách bằng dấu chấm phẩy.')}</div></details>
+      <details class="sec" id="sec-fmt"><summary>${ic('chev')}Định dạng video</summary><div class="body">
+        <div class="grid g2"><div class="field"><label for="f-durMin">Thời lượng tối thiểu (giây)</label><input class="inp num" type="number" min="5" max="60" id="f-durMin" data-field="durMin" value="${p.durMin}"></div>
+        <div class="field"><label for="f-durMax">Tối đa (giây)</label><input class="inp num" type="number" min="5" max="90" id="f-durMax" data-field="durMax" value="${p.durMax}"></div></div>
+        <div class="field"><span class="lbl">Định dạng ưu tiên</span><div class="pick">${FMTS.map((f,i)=>`<label><input type="checkbox" id="fm-${i}" data-fmt="${esc(f)}" ${p.formats.includes(f)?'checked':''}>${esc(f)}</label>`).join('')}</div></div>
+        <div class="grid g2">${sel('voice','Giọng đọc',['Giọng nữ miền Nam (HoaiMy)','Giọng nữ miền Bắc','Giọng nam miền Nam','Giọng của tôi (thu âm)'])}
+          <div class="field"><span class="lbl">Nghe thử</span><div class="row"><button class="btn sm" data-act="voice">${ic(S.voicePlaying?'pause':'play','fill')}${S.voicePlaying?'Dừng':'Phát mẫu 5 giây'}</button>${S.voicePlaying?'<span class="voice-wave"><i></i><i></i><i></i><i></i></span>':''}
+          <button class="btn sm ghost" data-act="recordVoice">${ic('mic')}Thu giọng của tôi</button></div></div>
+          ${sel('mascot','Mascot',['Mèo cam','Cún trắng','Không dùng'])}${sel('music','Nhạc nền',['Lo-fi vui','Acoustic','Sôi động','Không nhạc'])}</div></div></details>
+      <details class="sec" id="sec-ser"><summary>${ic('chev')}Series</summary><div class="body grid g2">
+        ${fld('series','Tên series','Ví dụ: Đồ rẻ có đáng không?')}<div class="field"><label for="f-episode">Tập tiếp theo</label><input class="inp num" type="number" min="1" id="f-episode" data-field="episode" value="${p.episode}"></div></div></details>
+      <details class="sec" id="sec-pub"><summary>${ic('chev')}Đăng bài</summary><div class="body">
+        <div class="field"><label for="tag-hashtags">Hashtag mặc định</label>${tagBox('hashtags','Ví dụ: #review')}</div>
+        ${fld('caption','Mẫu caption','{hook}\\nTập {episode} · {series}','textarea','Biến có sẵn: {hook} {price} {series} {episode} {link}')}
+        ${fld('times','Giờ đăng','Ví dụ: 11:30, 20:00')}</div></details>
+      <details class="sec" id="sec-ex"><summary>${ic('chev')}Kịch bản mẫu<span class="muted">Tối đa ~600 token</span></summary><div class="body">
+        ${fld('examples','Dán 1–3 kịch bản bạn thích','Hook: ...\\nÝ: ...\\nCTA: ...','textarea','AI bắt chước nhịp và cách nói, không chép nguyên câu.')}</div></details>
+    </div>
+    <aside class="dir-side">
+      <div class="card stack"><div class="row"><h3>Xem trước prompt</h3><span class="muted num" style="margin-left:auto;font-size:12px" id="tokTxt">≈ ${m.tok} / 700 token</span></div>
+        <div class="tokbar"><i id="tokBar" style="width:${m.pct}%"></i></div>
+        <div class="field"><label for="sampleP">Sản phẩm mẫu</label><select class="inp" id="sampleP">${PRODUCTS.filter(x=>x.facts).map(x=>`<option value="${x.id}" ${x.id===S.sampleProduct?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <pre class="prompt" id="promptPre">${esc(m.txt)}</pre>
+        <button class="btn pri" data-act="testDraft" ${S.testState==='loading'?'disabled':''}>${ic('spark')}${S.testState==='loading'?'Đang tạo nháp thử…':'Tạo thử 1 nháp'}</button>
+        ${S.testState==='loading'?'<div class="stack" style="gap:8px"><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div><div class="skel" style="width:80%"></div></div>':''}
+        ${S.testState==='done'?`<div class="notebox"><span class="lbl">Nháp thử · không tính vào hộp duyệt</span><b>"${esc(P(S.sampleProduct).name.split(' ').slice(0,3).join(' '))} giá ${vnd(P(S.sampleProduct).price)}? Tui thử rồi nè"</b>
+          <span style="font-size:13px">${esc((P(S.sampleProduct).facts||[]).join(' · '))}</span><span class="muted" style="font-size:12px">22 giây · Đoán giá · dùng định hướng ${S.dirty?'chưa lưu':'v'+chan().version}</span></div>`:''}
+      </div>
+    </aside>
+  </div>`;
+};
+function drawerHtml(){
+  const h=HISTORY[S.channel]||[],cur=h[S.histSel]||h[0];
+  return `<div class="drawer-scrim" data-act="drawerClose"></div><aside class="drawer" role="dialog" aria-label="Lịch sử phiên bản">
+    <div class="row"><h2>Lịch sử phiên bản</h2><button class="btn sm ghost" style="margin-left:auto" data-act="drawerClose" aria-label="Đóng">${ic('x')}</button></div>
+    <div class="stack" style="gap:8px">${h.map((v,i)=>`<div class="ver ${i===S.histSel?'on':''}" data-act="histSel" data-i="${i}" tabindex="0"><div class="row"><b>v${v.v}</b>${v.v===chan().version?'<span class="chip ok">Đang dùng</span>':''}<span class="muted" style="margin-left:auto;font-size:12px">${v.when}</span></div><span style="font-size:13px">${esc(v.sum)}</span><span class="muted" style="font-size:12px">${esc(v.who)}</span></div>`).join('')}</div>
+    <div class="stack" style="gap:8px"><span class="lbl">Thay đổi so với bản trước</span><div class="diff">${cur.diff.map(d=>`<div class="${d[0]}">${d[0]==='add'?'+':'−'} ${esc(d[1])}</div>`).join('')}</div></div>
+    ${cur.v!==chan().version?(S.confirmRestore?`<div class="warnbox">${ic('alert')}<span>Khôi phục v${cur.v} sẽ tạo bản mới v${chan().version+1} với nội dung của v${cur.v}. Bản hiện tại vẫn được giữ.</span></div>
+      <div class="row"><button class="btn pri" data-act="restoreYes">Khôi phục</button><button class="btn" data-act="restoreNo">Huỷ</button></div>`
+      :`<button class="btn" data-act="restore">${ic('history')}Khôi phục v${cur.v}</button>`):''}
+  </aside>`;
+}
+
+/* ---- sản phẩm ---- */
+V.products=()=>{
+  const q=S.prodQuery.toLowerCase();
+  const list=PRODUCTS.filter(p=>!q||p.name.toLowerCase().includes(q));
+  let body;
+  if(S.prodView==='loading')body=`<div class="card stack">${[1,2,3,4].map(()=>'<div class="row" style="flex-wrap:nowrap"><div class="skel" style="width:40px;height:40px"></div><div class="skel" style="flex:1"></div></div>').join('')}</div>`;
+  else if(S.prodView==='error')body=`<div class="err">${ic('alert')}<div class="txt"><b>Không tải được danh sách sản phẩm.</b> Máy chủ không phản hồi sau 10 giây. Kiểm tra mạng rồi thử lại.</div><button class="btn sm" data-act="prodView" data-v="normal">${ic('refresh')}Thử lại</button></div>`;
+  else if(S.prodView==='empty'||!list.length)body=`<div class="card empty">${ic('box')}<h3>${q&&S.prodView!=='empty'?'Không có sản phẩm khớp "'+esc(S.prodQuery)+'"':'Chưa có sản phẩm nào'}</h3><p>Thêm sản phẩm bằng link affiliate và vài tấm ảnh. Clip tự quay giúp video thật hơn.</p><button class="btn pri" data-act="focusAdd">${ic('plus')}Thêm sản phẩm đầu tiên</button></div>`;
+  else body=`<div class="tbl-wrap"><table><thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Giá</th><th>Link affiliate</th><th>Clip của tôi</th></tr></thead><tbody>
+    ${list.map(p=>`<tr><td><div class="row" style="flex-wrap:nowrap"><span class="thumb" style="--h:${p.h}">${esc(p.name.split(' ').slice(0,2).map(w=>w[0]).join(''))}</span><b>${esc(p.name)}</b></div></td>
+    <td>${esc(p.cat)}</td><td class="num">${vnd(p.price)}</td><td class="mono muted">${esc(p.link)}</td><td><span class="row" style="gap:6px"><span class="dot ${p.clip?'on':''}"></span>${p.clip?'Có clip':'<span class="muted">Chưa có</span>'}</span></td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="head"><div><h1>Sản phẩm</h1><p class="sub">${PRODUCTS.length} sản phẩm · ${PRODUCTS.filter(p=>p.clip).length} có clip tự quay</p></div>
+    <div class="act"><div class="seg" role="group" aria-label="Xem thử trạng thái">${[['normal','Bình thường'],['loading','Đang tải'],['empty','Rỗng'],['error','Lỗi']].map(v=>`<button data-act="prodView" data-v="${v[0]}" class="${S.prodView===v[0]?'on':''}">${v[1]}</button>`).join('')}</div></div></div>
+  <div class="row"><div style="position:relative;flex:1;min-width:200px;max-width:360px"><input class="inp" id="prodQ" placeholder="Tìm theo tên sản phẩm" value="${esc(S.prodQuery)}" style="padding-left:34px"><span style="position:absolute;left:10px;top:10px;color:var(--muted)">${ic('search')}</span></div></div>
+  ${body}
+  <form class="card stack" data-form="product" id="addForm"><h2>Thêm sản phẩm</h2>
+    <div class="grid g3"><div class="field"><label for="np-name">Tên sản phẩm</label><input class="inp" id="np-name" required placeholder="Ví dụ: Quạt mini để bàn"></div>
+    <div class="field"><label for="np-price">Giá (đ)</label><input class="inp num" id="np-price" type="number" min="1000" required placeholder="159000"></div>
+    <div class="field"><label for="np-cat">Danh mục</label><select class="inp" id="np-cat"><option>Công nghệ</option><option>Phụ kiện</option><option>Nhà bếp</option><option>Gia dụng</option></select></div></div>
+    <div class="field"><label for="np-link">Link affiliate</label><input class="inp" id="np-link" type="url" required placeholder="https://s.shopee.vn/..."></div>
+    <label class="drop" id="drop" for="np-files">${ic('upload')}<b>Kéo ảnh sản phẩm và clip điện thoại vào đây</b><span style="font-size:12px">Clip dọc 3–10 giây quay bằng điện thoại là đủ. Ảnh JPG/PNG, clip MP4/MOV.</span>
+      <input type="file" id="np-files" multiple accept="image/*,video/*" hidden></label>
+    ${S.files.length?`<div class="row">${S.files.map(f=>`<span class="badge ${/video/.test(f.type)?'acc':''}">${/video/.test(f.type)?'Clip':'Ảnh'} · ${esc(f.name)}</span>`).join('')}</div>`:''}
+    <div class="row"><button class="btn pri" type="submit">Lưu sản phẩm</button><span class="muted" style="font-size:12.5px">Có clip tự quay, sản phẩm sẽ có nhãn "Có clip" và được ưu tiên trong loạt mới.</span></div>
+  </form>`;
+};
+
+/* ---- tạo loạt ---- */
+V.batch=()=>{
+  const c=chan(),b=S.batch;
+  const sel=b.products.map(P);
+  const off=sel.filter(p=>!c.cats.includes(p.cat));
+  const n=sel.length*b.variants; const neur=n*165;
+  if(b.running||b.items.length){
+    const done=b.items.filter(i=>i.status==='pending_review').length;
+    return `<div class="head"><div><h1>Loạt video đang chạy</h1><p class="sub">${esc(c.name)} · ${done}/${b.items.length} nháp đã xong</p></div>
+      <div class="act">${b.running?'':`<button class="btn" data-act="batchNew">Tạo loạt khác</button>`}<a class="btn pri" href="#inbox">${ic('inbox')}Mở hộp duyệt</a></div></div>
+      <div class="prog"><i style="width:${Math.round(done/b.items.length*100)}%"></i></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Sản phẩm</th><th>Biến thể</th><th>Trạng thái</th></tr></thead><tbody>
+      ${b.items.map(i=>`<tr><td>${esc(P(i.product).name)}</td><td><span class="var">${i.variant}</span></td><td>${chip(i.status)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  return `<div class="head"><div><h1>Tạo loạt video</h1><p class="sub">AI viết và dựng nháp. Bạn duyệt trong hộp duyệt trước khi đăng.</p></div></div>
+  <form class="stack" data-form="batch" style="gap:20px">
+    <section class="card stack"><h2>1. Kênh</h2><div class="row"><span class="plat">${c.platform==='TikTok'?'TT':'IG'}</span><b>${esc(c.name)}</b><span class="muted">${esc(c.niche)} · định hướng v${c.version}</span><span class="muted" style="font-size:12px">Đổi kênh ở thanh trên cùng.</span></div></section>
+    <section class="card stack"><div class="row"><h2>2. Sản phẩm</h2><span class="muted" style="margin-left:auto">${sel.length} đã chọn</span></div>
+      <div class="pick">${PRODUCTS.map(p=>`<label><input type="checkbox" id="bp-${p.id}" data-bprod="${p.id}" ${b.products.includes(p.id)?'checked':''}><span class="thumb" style="--h:${p.h};width:32px;height:32px">${esc(p.name[0])}</span><span style="min-width:0"><b style="font-weight:500">${esc(p.name)}</b><br><span class="muted" style="font-size:12px">${vnd(p.price)} · ${esc(p.cat)}${p.clip?' · có clip':''}</span></span></label>`).join('')}</div>
+      ${off.length?`<div class="warnbox">${ic('alert')}<span><b>${off.map(p=>esc(p.name)).join(', ')}</b> nằm ngoài ngách "${esc(c.niche)}". Vẫn tạo được, nhưng người xem kênh này có thể không quan tâm.</span></div>`:''}
+    </section>
+    <section class="card stack"><h2>3. Định dạng</h2>
+      <div class="pick fmt-pick">${[['auto','AI tự chọn','Theo định dạng ưu tiên của kênh']].concat(FORMATS.map(f=>[f.name,f.name,f.use])).map(f=>`<label><span class="row" style="gap:8px"><input type="radio" name="bfmt" id="bf-${esc(f[0])}" value="${esc(f[0])}" ${b.format===f[0]?'checked':''}><b style="font-weight:500">${esc(f[1])}</b></span><span class="muted" style="font-size:12px">${esc(f[2])}</span></label>`).join('')}</div></section>
+    <section class="card stack"><h2>4. Số biến thể hook mỗi sản phẩm</h2>
+      <div class="seg" role="group" aria-label="Số biến thể">${[1,2,3].map(v=>`<button type="button" data-act="variants" data-v="${v}" class="${b.variants===v?'on':''}">${v}</button>`).join('')}</div>
+      <p class="muted" style="font-size:13px">2 biến thể là đủ để biết hook nào kéo người xem tốt hơn. 3 biến thể tốn quota gấp rưỡi.</p></section>
+    <section class="card row" style="background:var(--surface-2)"><div><p class="lbl">Ước tính</p><b class="num" style="font-size:18px">${n} nháp · ≈ ${nf(neur)} neuron</b>
+      <p class="muted" style="font-size:13px">${Math.round(neur/S.budget*100)}% quota hôm nay · khoảng ${Math.max(1,Math.ceil(n*0.8))} phút</p></div>
+      <button class="btn pri" type="submit" style="margin-left:auto" ${n?'':'disabled'}>${ic('spark')}Bắt đầu tạo ${n} nháp</button></section>
+  </form>`;
+};
+
+/* ---- hộp duyệt ---- */
+function inboxList(){
+  return DRAFTS.filter(d=>d.channel===S.channel&&(S.filter.status==='all'||d.status===S.filter.status)&&(S.filter.format==='all'||d.format===S.filter.format));
+}
+function cur(){return DRAFTS.find(d=>d.id===S.sel)}
+function rulesFor(d){
+  const p=prof(),total=d.scenes.reduce((a,s)=>a+s.dur,0);
+  const r=[{t:'ok',m:'Không có từ cấm của kênh'},{t:total>=p.durMin&&total<=p.durMax?'ok':'bad',m:`Thời lượng ${total} giây (kênh: ${p.durMin}–${p.durMax})`},{t:'ok',m:'Giá trong video khớp giá sản phẩm'}];
+  if(d.profile<chan().version)r.push({t:'warn',m:`Viết theo định hướng v${d.profile}, kênh đang dùng v${chan().version}`});
+  return r.concat(d.rules||[]);
+}
+const BADGE={'old channel direction':['Định hướng cũ','warn'],'AI images':['Ảnh AI',''],'my voice':['Giọng của tôi','acc'],'failed, retry':['Lỗi, thử lại','bad']};
+const badges=d=>d.badges.map(b=>`<span class="badge ${BADGE[b][1]}">${BADGE[b][0]}</span>`).join('');
+V.inbox=()=>{
+  const list=inboxList();
+  if(list.length&&!list.find(d=>d.id===S.sel))S.sel=list[0].id;
+  const d=list.find(x=>x.id===S.sel);
+  const groups=[...new Set(list.map(x=>x.product))];
+  const fmts=[...new Set(DRAFTS.map(x=>x.format))];
+  const left=`<div class="ib-list"><div class="filters">
+      <select class="inp" id="fStatus" aria-label="Lọc trạng thái"><option value="all">Mọi trạng thái</option>${['pending_review','needs_changes','revising','failed','approved','ready'].map(s=>`<option value="${s}" ${S.filter.status===s?'selected':''}>${STATUS[s][0]}</option>`).join('')}</select>
+      <select class="inp" id="fFormat" aria-label="Lọc định dạng"><option value="all">Mọi định dạng</option>${fmts.map(f=>`<option ${S.filter.format===f?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
+    ${list.length?groups.map(g=>`<div><div class="grp"><span class="thumb" style="--h:${P(g).h};width:22px;height:22px;font-size:10px;border-radius:5px">${esc(P(g).name[0])}</span>${esc(P(g).name)}</div>
+      ${list.filter(x=>x.product===g).map(x=>`<button class="item ${x.id===S.sel?'on':''}" data-act="pick" data-id="${x.id}"><span class="m"><span class="var">${x.variant}</span>${chip(x.status)}<span class="muted num" style="margin-left:auto;font-size:11.5px">${x.ago}</span></span><span class="t">${esc(x.hook)}</span><span class="m">${badges(x)}</span></button>`).join('')}</div>`).join('')
+      :`<div class="empty">${ic('check')}<h3>Hết nháp cần duyệt</h3><p>Không có nháp nào khớp bộ lọc này.</p></div>`}
+  </div>`;
+  if(!d)return `<div class="head"><div><h1>Hộp duyệt</h1></div></div><div class="inbox">${left}<div class="ib-stage card empty">${ic('inbox')}<h3>Chọn một nháp để xem</h3><p>Hoặc <a href="#batch">tạo loạt mới</a>.</p></div></div>`;
+  const sc=d.scenes,total=sc.reduce((a,s)=>a+s.dur,0);
+  const canAct=['pending_review','needs_changes'].includes(d.status);
+  return `<div class="head"><div><h1>Hộp duyệt</h1><p class="sub">${pendingCount()} nháp chờ duyệt · ${esc(chan().name)}</p></div>
+    <div class="act"><a class="btn" href="#editor" data-act="toEditor">${ic('film')}Mở trong trình chỉnh</a></div></div>
+  <div class="inbox">${left}
+    <div class="ib-stage">
+      ${d.status==='failed'?`<div class="err" style="width:100%">${ic('alert')}<div class="txt"><b>Không dựng được video.</b> ${esc(d.error)}</div><button class="btn sm" data-act="retry" data-id="${d.id}">${ic('refresh')}Thử lại</button></div>`:''}
+      <div class="phone"><div class="screen" style="--h:${P(d.product).h}">
+        <div class="ph-top"><span>${esc(chan().handle)}</span><span class="num" id="phTime">0:00 / 0:${String(total).padStart(2,'0')}</span></div>
+        <div class="ph-hook">${esc(d.hook)}</div>
+        <div class="ph-visual" id="phVis">${esc(P(d.product).name.split(' ').slice(0,2).map(w=>w[0]).join(''))}<small id="phVisL">${esc(sc[S.scene].visual)}</small></div>
+        <div class="mascot ${S.playing?'talk':''}" id="mascot"><i></i><i></i></div>
+        <div class="ph-sub" id="phSub">${esc(sc[S.scene].text)}</div>
+        <div class="ph-bar"><i id="phBar" style="width:${S.t/total*100}%"></i></div>
+        <button class="ph-play" data-act="play" aria-label="${S.playing?'Tạm dừng':'Phát'} video"></button>
+      </div></div>
+      <div class="actions">
+        <button class="btn ok" data-act="approve" ${canAct?'':'disabled'}>${ic('check')}Duyệt <kbd>A</kbd></button>
+        <button class="btn bad" data-act="reject" ${canAct?'':'disabled'}>${ic('x')}Loại <kbd>R</kbd></button>
+        <button class="btn" data-act="note" ${d.status==='failed'?'disabled':''}>${ic('pen')}Ghi chú <kbd>N</kbd></button>
+      </div>
+      <div class="kbd-help"><span><kbd>J</kbd> nháp sau</span><span><kbd>K</kbd> nháp trước</span><span><kbd>Space</kbd> phát/dừng</span></div>
+    </div>
+    <div class="ib-panel">
+      ${S.noteOpen?`<form class="notebox" data-form="note"><label for="noteTxt"><b>Ghi chú cho AI</b></label><textarea class="inp" id="noteTxt" placeholder="Ví dụ: Hook dài quá, cắt còn dưới 8 chữ. Cảnh 3 dùng clip của tôi.">${esc(d.note||'')}</textarea>
+        <div class="row"><button class="btn pri" type="submit">${ic('spark')}AI sửa theo ghi chú</button><button class="btn ghost" type="button" data-act="noteClose">Huỷ</button></div>
+        <span class="muted" style="font-size:12px">Cảnh có biểu tượng khoá sẽ được giữ nguyên.</span></form>`:(d.note?`<div class="warnbox">${ic('pen')}<span><b>Ghi chú trước:</b> ${esc(d.note)}</span></div>`:'')}
+      <section class="card"><div class="row" style="margin-bottom:10px"><span class="var">${d.variant}</span><b>${esc(d.format)}</b>${chip(d.status)}</div><div class="row">${badges(d)}<span class="badge">Định hướng v${d.profile}</span></div></section>
+      <section class="card"><div class="score"><div class="ring num" style="--v:${d.score}">${d.score||'–'}</div><div class="bars">
+        ${['Sức hút hook','Rõ ràng','Đúng định hướng'].map((l,i)=>`<div><span>${l}</span><span class="hb"><i style="width:${d.parts[i]}%"></i></span><b class="num">${d.parts[i]}</b></div>`).join('')}</div></div></section>
+      <section class="card"><h3 style="margin-bottom:6px">Kiểm tra luật</h3>${rulesFor(d).map(r=>`<div class="rule ${r.t}">${ic(r.t==='ok'?'check':r.t==='bad'?'x':'alert')}<span>${esc(r.m)}</span></div>`).join('')}</section>
+      <section class="card"><h3 style="margin-bottom:8px">Kịch bản</h3><div class="script">${sc.map((s,i)=>`<p class="${i===S.scene?'cur':''}"><span class="lbl">${s.kind}</span><br>${esc(s.text)}</p>`).join('')}</div></section>
+    </div>
+    <div class="ib-tl card"><div class="row" style="margin-bottom:8px"><h3>Các cảnh</h3><span class="muted num" style="font-size:12px">${total} giây</span></div>
+      <div class="tl">${sc.map((s,i)=>`<button class="${i===S.scene?'cur':''}" data-act="seek" data-i="${i}" style="flex-grow:${s.dur};min-width:${70+s.dur*12}px"><b>${s.locked?ic('lock'):''}${s.kind}</b><span class="muted num">${s.dur}s · ${esc(s.visual)}</span></button>`).join('')}</div></div>
+  </div>`;
+};
+
+/* ---- trình chỉnh video ---- */
+V.editor=()=>{
+  const d=DRAFTS.find(x=>x.id===S.edDraft)||DRAFTS[0],sc=d.scenes,total=sc.reduce((a,s)=>a+s.dur,0),s=sc[S.edScene];
+  let acc=0;const pos=sc.map(x=>{const st=acc;acc+=x.dur;return [st/total*100,x.dur/total*100]});
+  const lane=(cls,fn)=>sc.map((x,i)=>`<div class="blk ${cls} ${i===S.edScene?'cur':''}" data-act="edScene" data-i="${i}" style="left:${pos[i][0]}%;width:calc(${pos[i][1]}% - 3px)" title="${esc(fn(x))}">${cls==='scene'&&x.locked?ic('lock'):''}${esc(fn(x))}</div>`).join('');
+  return `<div class="head"><div><h1>Chỉnh video</h1><p class="sub">${esc(P(d.product).name)} · biến thể ${d.variant} · ${esc(d.format)}</p></div>
+    <div class="act"><select class="inp" id="edPick" aria-label="Chọn video" style="width:auto">${DRAFTS.filter(x=>x.status!=='failed').map(x=>`<option value="${x.id}" ${x.id===d.id?'selected':''}>${esc(P(x.product).name)} · ${x.variant}</option>`).join('')}</select>
+    <button class="btn pri" data-act="edRender">${ic('refresh')}Dựng lại preview</button></div></div>
+  <div class="card stack"><div class="lanes">
+    <span></span><div class="ruler num">${Array.from({length:Math.floor(total/2)+1},(_,i)=>`<span style="left:${i*2/total*100}%">${i*2}s</span>`).join('')}</div>
+    <span class="lbl">Cảnh</span><div class="lane">${lane('scene',x=>x.kind+' · '+x.visual)}</div>
+    <span class="lbl">Phụ đề</span><div class="lane">${lane('sub',x=>x.text)}</div>
+    <span class="lbl">Mascot</span><div class="lane">${lane('mas',x=>x.mascot)}</div>
+    <span class="lbl">Nhạc</span><div class="lane"><div class="blk mus" style="left:0;width:100%">${esc(prof().music)} · nhỏ dần ở 2 giây cuối</div></div>
+  </div></div>
+  <div class="ed">
+    <form class="card stack" data-form="scene"><div class="row"><h2>Cảnh ${S.edScene+1}: ${s.kind}</h2>${s.locked?`<span class="chip acc">${ic('lock')}Đã sửa tay, AI không ghi đè</span>`:''}</div>
+      <div class="field"><label for="es-text">Lời thoại & phụ đề</label><textarea class="inp" id="es-text">${esc(s.text)}</textarea><span class="hint">${s.text.split(/\s+/).length} chữ · đọc khoảng ${Math.max(1,Math.round(s.text.split(/\s+/).length/3.2))} giây</span></div>
+      <div class="grid g3"><div class="field"><label for="es-dur">Thời lượng (giây)</label><input class="inp num" type="number" id="es-dur" min="1" max="15" value="${s.dur}"></div>
+        <div class="field"><label for="es-vis">Hình ảnh</label><select class="inp" id="es-vis">${['Clip tự quay','Ảnh sản phẩm','Ảnh sản phẩm + giá','Ảnh AI'].map(o=>`<option ${o===s.visual?'selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="field"><label for="es-mas">Mascot</label><select class="inp" id="es-mas">${['Ngạc nhiên','Chỉ tay','Lắc đầu','Gật đầu','Vẫy tay','Ẩn'].map(o=>`<option ${o===s.mascot?'selected':''}>${o}</option>`).join('')}</select></div></div>
+      <div class="row"><button class="btn pri" type="submit">Lưu cảnh</button><label class="btn" for="es-voice">${ic('mic')}Tải file thu giọng cho cảnh này</label><input type="file" id="es-voice" accept="audio/*" hidden></div>
+      <p class="muted" style="font-size:12.5px">Lưu cảnh sẽ khoá cảnh này. Khi AI sửa theo ghi chú, các cảnh khoá giữ nguyên.</p>
+    </form>
+    <aside class="card stack"><h2>Phiên bản</h2>
+      ${[['v3','Đang xem','Bạn sửa cảnh 2',1],['v2','2 giờ trước','AI sửa theo ghi chú "hook ngắn hơn"',0],['v1','3 giờ trước','Nháp đầu của AI',0]].map(v=>`<div class="ver ${v[3]?'on':''}"><div class="row"><b>${v[0]}</b><span class="muted" style="margin-left:auto;font-size:12px">${v[1]}</span></div><span style="font-size:13px">${v[2]}</span></div>`).join('')}
+      <p class="muted" style="font-size:12.5px">Bản được duyệt sẽ là bản dùng để render và đăng.</p></aside>
+  </div>`;
+};
+
+/* ---- định dạng ---- */
+V.formats=()=>`<div class="head"><div><h1>Định dạng</h1><p class="sub">Số liệu tính trên 30 ngày qua của mọi kênh. Định dạng có tỷ lệ xem hết cao giúp video lên đề xuất.</p></div></div>
+  <div class="grid g3">${FORMATS.map(f=>`<article class="card fmt"><h2>${esc(f.name)}</h2>
+    <div class="struct"><b>Hook</b><span>${esc(f.hook)}</span><b>Nội dung</b><span>${esc(f.body)}</span><b>CTA</b><span>${esc(f.cta)}</span></div>
+    <p class="muted" style="font-size:13px">Hợp với: ${esc(f.use)}</p>
+    <div class="kpis"><div><strong class="num">${f.done}%</strong><span class="muted" style="font-size:12px">xem hết</span></div><div><strong class="num">${String(f.click).replace('.',',')}</strong><span class="muted" style="font-size:12px">click / 1.000 lượt xem</span></div></div></article>`).join('')}</div>`;
+
+/* ---- đăng & số liệu ---- */
+V.publishing=()=>{
+  const ready=DRAFTS.filter(d=>['ready','approved'].includes(d.status));
+  const d=DRAFTS.find(x=>x.id===S.pubSel)||ready[0];
+  const ch=C(d.channel),pf=PROFILES[d.channel],p=P(d.product);
+  const caption=(pf.caption||'{hook}').replace('{hook}',d.hook).replace('{episode}',pf.episode).replace('{series}',pf.series).replace('{price}',vnd(p.price)).replace(/\\n|\n/g,' · ');
+  const bars={format:FORMATS.map(f=>[f.name,f.done]),channel:CHANNELS.map(c=>[c.name,[46,39,22][CHANNELS.indexOf(c)]]),hook:[['Biến thể A',51],['Biến thể B',42],['Biến thể C',35]]}[S.pubTab];
+  return `<div class="head"><div><h1>Đăng & số liệu</h1><p class="sub">Affilio chưa tự đăng. Copy gói đăng, đăng bằng app, rồi dán link bài để theo dõi số liệu.</p></div></div>
+  <div class="grid g2">
+    <section class="card stack"><h2>Sẵn sàng đăng</h2>
+      ${ready.map(x=>`<button class="item ${x.id===d.id?'on':''}" data-act="pubSel" data-id="${x.id}"><span class="m"><span class="var">${x.variant}</span>${chip(x.status)}<span class="muted" style="margin-left:auto;font-size:12px">${esc(C(x.channel).name)}</span></span><span class="t">${esc(x.hook)}</span></button>`).join('')}
+    </section>
+    <section class="card stack"><h2>Gói đăng</h2>
+      ${[['Caption',caption],['Hashtag',pf.hashtags.join(' ')],['Link affiliate','https://'+p.link]].map((r,i)=>`<div class="field"><span class="lbl">${r[0]}</span><div class="copy"><div class="box" id="cp${i}">${esc(r[1])}</div><button class="btn sm" data-act="copy" data-i="${i}">${ic('copy')}Copy</button></div></div>`).join('')}
+      <form class="field" data-form="puburl"><label for="pubUrl">Link bài đã đăng</label><div class="copy"><input class="inp" id="pubUrl" type="url" required placeholder="https://www.tiktok.com/@${esc(ch.handle.slice(1))}/video/..." value="${esc(S.pubUrl)}"><button class="btn pri sm" type="submit" style="min-height:38px">Lưu</button></div>
+        <span class="hint">Sau khi lưu, số liệu được lấy ở mốc 1 giờ, 24 giờ và 7 ngày.</span></form>
+    </section>
+  </div>
+  <section class="card stack"><h2>Video đã đăng gần đây</h2><div class="tbl-wrap" style="border:0"><table><thead><tr><th>Video</th><th>Kênh</th><th>1 giờ</th><th>24 giờ</th><th>7 ngày</th><th>Xem hết</th><th>Click</th></tr></thead><tbody>
+    ${[['Đèn kẹp 149k: mua hay bỏ?','Mèo Review Công Nghệ','1.240','8.930','21.400','44%','183'],['Cục sạc bằng thẻ ATM này giá bao nhiêu?','Mèo Review Công Nghệ','2.810','15.200','38.900','58%','482'],['Nồi chiên 690k, 3 điều phải biết','Bếp Nhà Tiết Kiệm','640','4.120','—','39%','51'],['Máy xay cầm tay 175k có đáng?','Bếp Nhà Tiết Kiệm','390','—','—','—','—']].map(r=>`<tr><td><b style="font-weight:500">${r[0]}</b></td><td class="muted">${r[1]}</td>${r.slice(2).map(v=>`<td class="num">${v}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div></section>
+  <section class="card stack"><div class="row"><h2>Tỷ lệ xem hết</h2><div class="seg" role="group" aria-label="Nhóm theo" style="margin-left:auto">${[['format','Định dạng'],['channel','Kênh'],['hook','Biến thể hook']].map(t=>`<button data-act="pubTab" data-v="${t[0]}" class="${S.pubTab===t[0]?'on':''}">${t[1]}</button>`).join('')}</div></div>
+    <div>${bars.map(b=>`<div class="hbar"><span>${esc(b[0])}</span><span class="hb"><i style="width:${b[1]}%"></i></span><b class="num">${b[1]}%</b></div>`).join('')}</div>
+    <p class="muted" style="font-size:12px">Thang 0–100%. 30 ngày gần nhất.</p></section>`;
+};
+
+/* ---- cài đặt ---- */
+V.workspace=()=>`<div class="head"><div><h1>Cài đặt</h1><p class="sub">Không gian làm việc, thành viên và ngân sách AI.</p></div></div>
+  <form class="card stack" data-form="ws"><h2>Không gian làm việc</h2><div class="grid g2"><div class="field"><label for="ws-name">Tên</label><input class="inp" id="ws-name" value="Huy Affiliate"></div>
+    <div class="field"><label for="ws-voice">Giọng đọc mặc định</label><select class="inp" id="ws-voice"><option>Giọng nữ miền Nam (HoaiMy)</option><option>Giọng nữ miền Bắc</option><option>Giọng nam miền Nam</option></select><span class="hint">Kênh có giọng riêng sẽ dùng giọng của kênh.</span></div></div>
+    <div class="field"><label for="ws-budget">Quota AI mỗi ngày: <b class="num" id="budgetTxt">${nf(S.budget)}</b> neuron</label><input type="range" id="ws-budget" min="2000" max="20000" step="1000" value="${S.budget}" style="accent-color:var(--accent)">
+      <span class="hint">Gói miễn phí của Workers AI là 10.000 neuron/ngày. Vượt mức, job mới sẽ chờ tới ngày hôm sau.</span></div>
+    <div><button class="btn pri" type="submit">Lưu cài đặt</button></div></form>
+  <section class="card stack"><div class="row"><h2>Thành viên</h2><button class="btn sm" style="margin-left:auto" data-act="invite">${ic('plus')}Mời thành viên</button></div>
+    <div class="tbl-wrap" style="border:0"><table><thead><tr><th>Tên</th><th>Vai trò</th><th>Quyền</th></tr></thead><tbody>
+    ${[['Huy','Chủ sở hữu','Mọi thứ, kể cả ngân sách'],['Lan','Biên tập','Sửa định hướng, chỉnh video'],['Minh','Người duyệt','Duyệt, loại, ghi chú']].map((m,i)=>`<tr><td><b style="font-weight:500">${m[0]}</b></td><td><select class="inp" id="role-${i}" style="width:auto" ${i===0?'disabled':''} aria-label="Vai trò của ${m[0]}">${['Chủ sở hữu','Biên tập','Người duyệt'].map(r=>`<option ${r===m[1]?'selected':''}>${r}</option>`).join('')}</select></td><td class="muted">${m[2]}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+
+/* ===================== router ===================== */
+let route='dashboard';
+function render(){
+  route=(location.hash.slice(1)||'dashboard'); if(!V[route])route='dashboard';
+  if(route!=='inbox')stopPlay();
+  renderNav(route);renderTop();
+  document.getElementById('view').innerHTML=V[route]();
+  document.getElementById('layer').innerHTML=S.drawer&&route==='channel-edit'?drawerHtml():'';
+  document.getElementById('side').classList.remove('open');
+}
+function rerender(){const y=window.scrollY;render();window.scrollTo(0,y)}
+window.addEventListener('hashchange',()=>{render();window.scrollTo(0,0)});
+
+/* ---- phát video giả lập ---- */
+function stopPlay(){S.playing=false;clearInterval(S.timer);S.timer=null}
+function updatePhone(){
+  const d=cur();if(!d||route!=='inbox')return;
+  const total=d.scenes.reduce((a,s)=>a+s.dur,0);let acc=0,idx=0;
+  for(let i=0;i<d.scenes.length;i++){if(S.t<acc+d.scenes[i].dur){idx=i;break}acc+=d.scenes[i].dur;idx=i}
+  const q=id=>document.getElementById(id);
+  if(idx!==S.scene){S.scene=idx;rerender();return}
+  if(q('phBar'))q('phBar').style.width=(S.t/total*100)+'%';
+  if(q('phTime'))q('phTime').textContent=`0:${String(Math.floor(S.t)).padStart(2,'0')} / 0:${String(total).padStart(2,'0')}`;
+}
+function togglePlay(){
+  const d=cur();if(!d)return;
+  if(S.playing){stopPlay();rerender();return}
+  const total=d.scenes.reduce((a,s)=>a+s.dur,0);if(S.t>=total-0.1){S.t=0;S.scene=0}
+  S.playing=true;rerender();
+  S.timer=setInterval(()=>{S.t+=0.1;if(S.t>=total){S.t=total;stopPlay();rerender();return}updatePhone()},100);
+}
+function selectDraft(id){stopPlay();S.sel=id;S.scene=0;S.t=0;S.noteOpen=false;rerender()}
+function step(dir){const l=inboxList();const i=l.findIndex(x=>x.id===S.sel);const n=l[Math.min(l.length-1,Math.max(0,i+dir))];if(n)selectDraft(n.id)}
+function nextPending(){const l=inboxList().filter(x=>x.status==='pending_review');if(l[0])selectDraft(l[0].id);else rerender()}
+
+/* ===================== hành động ===================== */
+const A={
+  menu:()=>document.getElementById('side').classList.toggle('open'),
+  theme:()=>{const m=getTheme();setTheme(m==='system'?'light':m==='light'?'dark':'system');renderTop()},
+  retry:el=>{const d=DRAFTS.find(x=>x.id===el.dataset.id);d.status='rendering';d.badges=d.badges.filter(b=>b!=='failed, retry');d.error='';rerender();toast('Đã xếp hàng render lại');
+    setTimeout(()=>{d.status='pending_review';d.score=77;d.parts=[78,75,78];rerender();toast('Nháp đã render xong, đang chờ duyệt')},2500)},
+  addChannel:()=>{const id='c'+(CHANNELS.length+1);CHANNELS.push({id,name:'Kênh mới '+(CHANNELS.length+1),handle:'@kenh_moi',platform:'TikTok',niche:'Chưa đặt ngách',cats:[],published:0,status:'paused',version:1,views:[0,0,0,0,0,0,0],cpm:0});
+    PROFILES[id]=JSON.parse(JSON.stringify(PROFILES.c3));HISTORY[id]=[{v:1,when:'Vừa xong',who:'Huy',sum:'Tạo kênh',diff:[['add','Bản đầu tiên']]}];S.channel=id;location.hash='channel-edit';toast('Đã tạo kênh mới. Điền định hướng để AI viết đúng giọng.')},
+  dupChannel:(el,e)=>{e.stopPropagation();const src=C(el.dataset.id);const id='c'+(CHANNELS.length+1);CHANNELS.push({...src,id,name:src.name+' (bản sao)',handle:src.handle+'_2',published:0,version:1,status:'paused',views:[0,0,0,0,0,0,0]});
+    PROFILES[id]=JSON.parse(JSON.stringify(PROFILES[src.id]));HISTORY[id]=[{v:1,when:'Vừa xong',who:'Huy',sum:'Nhân bản từ '+src.name,diff:[['add','Sao chép định hướng v'+src.version]]}];rerender();toast('Đã nhân bản '+src.name)},
+  openChannel:(el,e)=>{e.preventDefault();S.channel=el.dataset.id;S.dirty=false;S.testState='idle';if(location.hash==='#channel-edit')render();else location.hash='channel-edit'},
+  jump:el=>{const s=document.getElementById('sec-'+el.dataset.id);s.open=true;s.scrollIntoView({behavior:'smooth',block:'start'})},
+  rmTag:el=>{prof()[el.dataset.key].splice(+el.dataset.i,1);S.dirty=true;rerender()},
+  drawer:()=>{S.drawer=true;S.histSel=0;S.confirmRestore=false;rerender()},
+  drawerClose:()=>{S.drawer=false;rerender()},
+  histSel:el=>{S.histSel=+el.dataset.i;S.confirmRestore=false;rerender()},
+  restore:()=>{S.confirmRestore=true;rerender()},
+  restoreNo:()=>{S.confirmRestore=false;rerender()},
+  restoreYes:()=>{const h=HISTORY[S.channel],src=h[S.histSel],c=chan();c.version++;h.unshift({v:c.version,when:'Vừa xong',who:'Huy',sum:'Khôi phục từ v'+src.v,diff:src.diff});S.histSel=0;S.confirmRestore=false;S.dirty=false;rerender();toast('Đã khôi phục, kênh đang dùng v'+c.version)},
+  saveOpen:()=>{S.saveOpen=true;rerender();setTimeout(()=>document.getElementById('saveSum')?.focus(),0)},
+  saveCancel:()=>{S.saveOpen=false;rerender()},
+  voice:()=>{S.voicePlaying=!S.voicePlaying;rerender();if(S.voicePlaying)setTimeout(()=>{if(S.voicePlaying){S.voicePlaying=false;if(route==='channel-edit')rerender()}},5000)},
+  recordVoice:()=>toast('Bản thật: thu 10 câu mẫu hoặc tải file ghi âm để tạo giọng riêng'),
+  testDraft:()=>{S.testState='loading';rerender();setTimeout(()=>{S.testState='done';if(route==='channel-edit')rerender()},1800)},
+  prodView:el=>{S.prodView=el.dataset.v;rerender()},
+  focusAdd:()=>{S.prodView='normal';S.prodQuery='';rerender();document.getElementById('np-name').focus()},
+  variants:el=>{S.batch.variants=+el.dataset.v;rerender()},
+  batchNew:()=>{S.batch.items=[];rerender()},
+  pick:el=>selectDraft(el.dataset.id),
+  play:togglePlay,
+  seek:el=>{const d=cur();stopPlay();S.scene=+el.dataset.i;S.t=d.scenes.slice(0,S.scene).reduce((a,s)=>a+s.dur,0);rerender()},
+  approve:()=>{const d=cur();if(!d||!['pending_review','needs_changes'].includes(d.status))return;d.status='approved';toast('Đã duyệt biến thể '+d.variant+'. Đang chờ render bản cuối.');stopPlay();nextPending()},
+  reject:()=>{const d=cur();if(!d||!['pending_review','needs_changes'].includes(d.status))return;d.status='rejected';toast('Đã loại biến thể '+d.variant);stopPlay();nextPending()},
+  note:()=>{const d=cur();if(!d||d.status==='failed')return;S.noteOpen=true;rerender();setTimeout(()=>document.getElementById('noteTxt')?.focus(),0)},
+  noteClose:()=>{S.noteOpen=false;rerender()},
+  toEditor:()=>{S.edDraft=S.sel;S.edScene=0},
+  edScene:el=>{S.edScene=+el.dataset.i;rerender()},
+  edRender:()=>toast('Đang dựng lại preview (khoảng 20 giây)'),
+  pubSel:el=>{S.pubSel=el.dataset.id;S.pubUrl='';rerender()},
+  pubTab:el=>{S.pubTab=el.dataset.v;rerender()},
+  copy:el=>{const box=document.getElementById('cp'+el.dataset.i);const txt=box.textContent;
+    const fallback=()=>{const r=document.createRange();r.selectNodeContents(box);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Đã chọn sẵn chữ, bấm Ctrl+C để copy')};
+    if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('Đã copy')).catch(fallback);else fallback()},
+  invite:()=>toast('Bản thật: gửi lời mời qua email và chọn vai trò')
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;const f=A[el.dataset.act];if(f){if(el.tagName==='BUTTON'&&!el.type)e.preventDefault();f(el,e)}});
+
+/* ---- form ---- */
+document.addEventListener('submit',e=>{
+  e.preventDefault();const k=e.target.dataset.form;
+  if(k==='save'){const c=chan(),sum=document.getElementById('saveSum').value.trim()||'Cập nhật định hướng';c.version++;HISTORY[S.channel].unshift({v:c.version,when:'Vừa xong',who:'Huy',sum,diff:[['add',sum]]});S.dirty=false;S.saveOpen=false;rerender();toast('Đã lưu định hướng v'+c.version)}
+  if(k==='note'){const d=cur();d.note=document.getElementById('noteTxt').value.trim();if(!d.note){toast('Viết ghi chú trước khi gửi cho AI');return}
+    d.status='revising';S.noteOpen=false;stopPlay();rerender();toast('AI đang sửa theo ghi chú');
+    setTimeout(()=>{d.status='pending_review';d.score=Math.min(95,d.score+8);d.parts=d.parts.map(v=>Math.min(96,v+8));d.hook=d.hook.split(' ').slice(0,8).join(' ');if(route==='inbox')rerender();toast('Bản sửa đã xong: '+P(d.product).name+' · '+d.variant)},3000)}
+  if(k==='product'){const name=document.getElementById('np-name').value.trim(),price=+document.getElementById('np-price').value,link=document.getElementById('np-link').value.trim();
+    PRODUCTS.unshift({id:'p'+(PRODUCTS.length+1),name,cat:document.getElementById('np-cat').value,price,link:link.replace(/^https?:\/\//,''),clip:S.files.some(f=>/video/.test(f.type)),h:Math.floor(Math.random()*360)});S.files=[];S.prodView='normal';rerender();toast('Đã thêm '+name)}
+  if(k==='batch'){const b=S.batch;b.items=[];b.products.forEach(pid=>['A','B','C'].slice(0,b.variants).forEach(v=>b.items.push({product:pid,variant:v,status:'queued'})));b.running=true;rerender();
+    const order=['queued','drafting','previewing','pending_review'];
+    const tick=setInterval(()=>{const pend=b.items.filter(i=>i.status!=='pending_review');if(!pend.length){clearInterval(tick);b.running=false;if(route==='batch')rerender();toast('Loạt đã xong, '+b.items.length+' nháp đang chờ duyệt');return}
+      const it=pend[0];const nx=order[order.indexOf(it.status)+1];it.status=nx;
+      if(pend[1]&&pend[1].status==='queued')pend[1].status='drafting';if(route==='batch')rerender()},500)}
+  if(k==='scene'){const d=DRAFTS.find(x=>x.id===S.edDraft)||DRAFTS[0],s=d.scenes[S.edScene];s.text=document.getElementById('es-text').value;s.dur=Math.max(1,+document.getElementById('es-dur').value||s.dur);
+    s.visual=document.getElementById('es-vis').value;s.mascot=document.getElementById('es-mas').value;s.locked=true;rerender();toast('Đã lưu và khoá cảnh '+(S.edScene+1))}
+  if(k==='puburl'){S.pubUrl=document.getElementById('pubUrl').value;const d=DRAFTS.find(x=>x.id===S.pubSel);if(d)d.status='published';rerender();toast('Đã lưu link. Số liệu 1 giờ sẽ có lúc 21:15')}
+  if(k==='ws'){toast('Đã lưu cài đặt')}
+});
+
+/* ---- input ---- */
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.field){const p=prof(),k=t.dataset.field;p[k]=t.type==='number'?+t.value:t.value;S.dirty=true;refreshPrompt()}
+  if(t.id==='prodQ'){S.prodQuery=t.value;const pos=t.selectionStart;rerender();const n=document.getElementById('prodQ');n.focus();n.setSelectionRange(pos,pos)}
+  if(t.id==='ws-budget'){S.budget=+t.value;document.getElementById('budgetTxt').textContent=nf(S.budget)}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='chSel'){S.channel=t.value;S.dirty=false;S.saveOpen=false;S.testState='idle';S.drawer=false;stopPlay();S.sel='';rerender()}
+  if(t.dataset.fmt!==undefined){const p=prof();const f=t.dataset.fmt;p.formats=t.checked?[...p.formats,f]:p.formats.filter(x=>x!==f);S.dirty=true;refreshPrompt()}
+  if(t.tagName==='SELECT'&&t.dataset.field){S.dirty=true;rerender()}
+  if(t.id==='sampleP'){S.sampleProduct=t.value;S.testState='idle';rerender()}
+  if(t.id==='fStatus'){S.filter.status=t.value;rerender()}
+  if(t.id==='fFormat'){S.filter.format=t.value;rerender()}
+  if(t.dataset.bprod){const b=S.batch;b.products=t.checked?[...b.products,t.dataset.bprod]:b.products.filter(x=>x!==t.dataset.bprod);rerender()}
+  if(t.name==='bfmt'){S.batch.format=t.value}
+  if(t.id==='edPick'){S.edDraft=t.value;S.edScene=0;rerender()}
+  if(t.id==='np-files'){S.files=[...S.files,...t.files];rerender()}
+  if(t.id==='es-voice'&&t.files[0])toast('Đã gắn giọng thu "'+t.files[0].name+'" cho cảnh '+(S.edScene+1))
+});
+function refreshPrompt(){
+  const m=briefMeta(),pre=document.getElementById('promptPre');if(!pre)return;
+  pre.textContent=m.txt;document.getElementById('tokTxt').textContent=`≈ ${m.tok} / 700 token`;document.getElementById('tokBar').style.width=m.pct+'%';
+  const btn=document.querySelector('[data-act="saveOpen"]');if(btn)btn.disabled=false;
+}
+/* thẻ tag: Enter để thêm */
+document.addEventListener('keydown',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.taginput&&e.key==='Enter'){e.preventDefault();const v=t.value.trim();if(!v)return;const arr=prof()[t.dataset.taginput];if(!arr.includes(v))arr.push(v);S.dirty=true;rerender();document.getElementById('tag-'+t.dataset.taginput).focus();return}
+  if(t.classList&&t.classList.contains('ver')&&e.key==='Enter'){t.click();return}
+  if(e.key==='Escape'&&S.drawer){S.drawer=false;rerender();return}
+  if(route!=='inbox'||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/INPUT|TEXTAREA|SELECT/.test(t.tagName))return;
+  const k=e.key.toLowerCase();
+  if(k==='a'){e.preventDefault();A.approve()} else if(k==='r'){e.preventDefault();A.reject()} else if(k==='n'){e.preventDefault();A.note()}
+  else if(k==='j'){e.preventDefault();step(1)} else if(k==='k'){e.preventDefault();step(-1)} else if(k===' '){e.preventDefault();togglePlay()}
+});
+/* kéo thả file */
+document.addEventListener('dragover',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('over')}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d)d.classList.remove('over')});
+document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest('#drop');if(!d)return;e.preventDefault();S.files=[...S.files,...e.dataTransfer.files];rerender()});
+
+render();
+</script>
