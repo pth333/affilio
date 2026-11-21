@@ -1,4 +1,4 @@
-// Dữ liệu mẫu cho các màn hình chưa có API. Khi API sẵn sàng, thay bằng http.get(...) ở từng trang.
+// Dữ liệu mẫu cho các màn hình chưa có API. Khi API sẵn sàng, thêm file vào api/ (mỗi tài nguyên một file) rồi gọi ở từng trang.
 import type { Channel, ContentTemplate, Draft, LibraryProduct, NavItem, PublishItem } from '~/types';
 
 export const MAIN_NAV: NavItem[] = [

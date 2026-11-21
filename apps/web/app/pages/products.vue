@@ -21,7 +21,7 @@ async function copyLink(product: LibraryProduct): Promise<void> {
   else message.error('Trình duyệt chưa cho phép sao chép. Hãy sao chép thủ công.');
 }
 
-// ── Thêm sản phẩm (mock): khi có API thay bằng http.post('/products', …)
+// ── Thêm sản phẩm (mock): khi có API thay bằng productApi.create(…) (api/product.ts)
 const showForm = ref(false);
 const form = reactive({ name: '', affiliateUrl: '', category: 'Công nghệ', price: 0 });
 

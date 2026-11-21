@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Danh sách video từ API thật (/api/videos). Lỗi request đã được http interceptor báo bằng message.error.
-import { STATUS_LABEL, VIDEO_STATUSES, type Page, type Product, type VideoListItem, type VideoStatus } from '~/types';
+import { STATUS_LABEL, VIDEO_STATUSES, type Product, type VideoListItem, type VideoStatus } from '~/types';
 
 definePageMeta({ title: 'Video' });
 
@@ -14,10 +14,10 @@ const loading = ref(false);
 async function load(reset = true, silent = false): Promise<void> {
   loading.value = true;
   try {
-    const page = await http.get<Page<VideoListItem>>('/videos', {
-      params: { status: status.value || undefined, cursor: reset ? undefined : (cursor.value ?? undefined), limit: 30 },
-      silent,
-    });
+    const page = await videoApi.list(
+      { status: status.value || undefined, cursor: reset ? undefined : (cursor.value ?? undefined), limit: 30 },
+      { silent },
+    );
     items.value = reset ? page.items : [...items.value, ...page.items];
     cursor.value = page.nextCursor;
   } catch (err) {
@@ -36,7 +36,7 @@ const busy = ref(false);
 
 async function loadProducts(): Promise<void> {
   try {
-    products.value = (await http.get<Page<Product>>('/products', { params: { limit: 100 } })).items;
+    products.value = (await productApi.list({ limit: 100 })).items;
     if (!productId.value) productId.value = products.value[0]?.id ?? '';
   } catch {
     products.value = [];
@@ -46,7 +46,7 @@ async function loadProducts(): Promise<void> {
 async function addProduct(): Promise<void> {
   busy.value = true;
   try {
-    const p = await http.post<Product>('/products', { ...form, description: form.description || undefined });
+    const p = await productApi.create({ ...form, description: form.description || undefined });
     Object.assign(form, { name: '', affiliateUrl: '', description: '' });
     await loadProducts();
     productId.value = p.id;
@@ -62,7 +62,7 @@ async function createVideo(): Promise<void> {
   if (!productId.value) return;
   busy.value = true;
   try {
-    await http.post('/videos', { productId: productId.value });
+    await videoApi.create(productId.value);
     message.success('Đã tạo video nháp. AI đang viết kịch bản.');
     if (status.value === '') await load();
     else status.value = '';

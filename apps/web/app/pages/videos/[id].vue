@@ -19,7 +19,7 @@ const noteText = reactive<Record<string, string>>({});
 
 async function load(): Promise<void> {
   try {
-    data.value = await http.get<VideoDetail>(`/videos/${encodeURIComponent(id.value)}`);
+    data.value = await videoApi.detail(id.value);
   } catch {
     data.value = null;
   }
@@ -32,8 +32,7 @@ async function decide(decision: ReviewDecision): Promise<void> {
   if (!canReview.value || !version || busy.value) return;
   busy.value = true;
   try {
-    // Gửi kèm versionId: server từ chối nếu đã có bản mới hơn (tránh duyệt nhầm bản cũ).
-    await http.post(`/videos/${encodeURIComponent(id.value)}/review`, { versionId: version.id, decision });
+    await videoApi.review(id.value, { versionId: version.id, decision });
     message.success(DECISION_MESSAGE[decision]);
     await load();
   } catch {
@@ -49,7 +48,7 @@ async function addNote(sceneId: string): Promise<void> {
   if (!version || !text) return;
   busy.value = true;
   try {
-    await http.post(`/videos/${encodeURIComponent(id.value)}/notes`, { versionId: version.id, sceneId, text });
+    await videoApi.addNote(id.value, { versionId: version.id, sceneId, text });
     noteText[sceneId] = '';
     message.success('AI đã nhận ghi chú và đang chỉnh sửa bản nháp.');
     await load();

@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 
 // Affilio web. SPA thuần: mọi dữ liệu lấy qua /api (Caddy proxy ở prod, devProxy ở dev).
-// Auto-import: ref/computed/… (Vue), composables/ & utils/ (named export), components/ (mọi thư mục con, không tiền tố).
+// Auto-import: ref/computed/… (Vue), composables/, utils/ & api/ (named export), components/ (mọi thư mục con, không tiền tố).
 export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   compatibilityDate: '2026-11-01',
@@ -9,6 +9,8 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   css: ['~/assets/main.css'],
   components: [{ path: '~/components', pathPrefix: false }],
+  // api/: mỗi tài nguyên một file (video.ts, product.ts…), tự import như utils/.
+  imports: { dirs: ['api'] },
   app: {
     head: {
       title: 'Affilio',

@@ -1,6 +1,5 @@
-// HTTP client dùng chung (axios) + interceptor. Nuxt tự import `http`:
-//   const page = await http.get<Page<Product>>('/products', { params: { limit: 20 } })
-//   await http.post('/videos', { productId })
+// HTTP client dùng chung (axios) + interceptor.
+// Trang KHÔNG gọi `http` với URL trực tiếp — khai báo endpoint trong app/api/<tài nguyên>.ts rồi dùng videoApi/productApi…
 // Lỗi tự hiện bằng message.error; truyền { silent: true } nếu muốn tự xử lý ở chỗ gọi.
 import axios, { type AxiosRequestConfig } from 'axios';
 import { message } from '~/composables/useMessage';
