@@ -4,15 +4,14 @@ import {
   count,
   createDb,
   desc,
-  enqueue,
   ensureDefaultWorkspace,
   eq,
-  JOB_TYPES,
   jobs,
   loadConfig,
   newId,
   product,
   requestDraft,
+  requestFinalRender,
   REVIEW_DECISIONS,
   reviewVideo,
   video,
@@ -138,14 +137,7 @@ const COMMANDS: Record<string, Command> = {
     const result = await reviewVideo(db, { workspaceId: session.workspaceId, videoId, userId: session.userId, versionId: v.currentVersionId, decision });
     if (!result.ok) throw usageError(result.message);
     if (decision === 'approve') {
-      await enqueue(db, {
-        workspaceId: session.workspaceId,
-        queue: 'render',
-        type: JOB_TYPES.renderFinal,
-        payload: { videoId, versionId: v.currentVersionId },
-        videoId,
-        idempotencyKey: `${JOB_TYPES.renderFinal}:${v.currentVersionId}`,
-      });
+      await requestFinalRender(db, { workspaceId: session.workspaceId, videoId, versionId: v.currentVersionId });
     }
     console.log(`Video ${videoId} → ${result.video.status}`);
   },

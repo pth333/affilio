@@ -49,6 +49,25 @@ export async function requestDraft(
   });
 }
 
+/**
+ * Xếp job render bản cuối cho một phiên bản đã duyệt. Idempotent theo phiên bản nên duyệt
+ * lại cùng bản không render hai lần. API và CLI dùng chung hàm này.
+ */
+export async function requestFinalRender(
+  db: Db,
+  { workspaceId, videoId, versionId }: { workspaceId: string; videoId: string; versionId: string },
+): Promise<Job> {
+  const { job } = await enqueue(db, {
+    workspaceId,
+    queue: 'render',
+    type: JOB_TYPES.renderFinal,
+    payload: { videoId, versionId },
+    videoId,
+    idempotencyKey: `${JOB_TYPES.renderFinal}:${versionId}`,
+  });
+  return job;
+}
+
 // ───────────────────────── Kịch bản LLM → spec ─────────────────────────
 
 export const DRAFT_SYSTEM_PROMPT = [

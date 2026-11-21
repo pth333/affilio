@@ -6,7 +6,14 @@ import { z } from 'zod';
 import { healthRoutes } from '#src/routes/health.ts';
 import { productRoutes } from '#src/routes/products.ts';
 import { videoRoutes } from '#src/routes/videos.ts';
+import { AppError, formatZodIssues } from '#src/shared.ts';
 
+/**
+ * Dựng Fastify app: cấu hình chung, map lỗi và gắn route.
+ *
+ * Luồng một request — routes/ chỉ khai báo đường dẫn:
+ *   routes → controllers (validate + response) → services (nghiệp vụ) → repositories (DB).
+ */
 export interface AppDeps {
   db: Db;
   handle: DbHandle;
@@ -49,11 +56,20 @@ export async function buildApp(deps: AppDeps, logger: Logger): Promise<FastifyIn
   });
 
   app.setErrorHandler((err, req, reply) => {
+    // Lỗi nghiệp vụ do service ném ra: dùng đúng status và thông báo đã định nghĩa.
+    if (err instanceof AppError) {
+      return reply.status(err.statusCode).send({
+        error: err.error,
+        message: err.message,
+        ...(err.issues ? { issues: err.issues } : {}),
+      });
+    }
+    // ZodError lọt ra ngoài validate() (vd. từ @vm/core) vẫn trả 400 kèm lỗi từng trường.
     if (err instanceof z.ZodError) {
       return reply.status(400).send({
         error: 'Bad Request',
         message: 'Dữ liệu gửi lên không hợp lệ',
-        issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+        issues: formatZodIssues(err),
       });
     }
     const status = err instanceof Error && 'statusCode' in err && typeof err.statusCode === 'number' ? err.statusCode : 500;

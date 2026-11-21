@@ -16,6 +16,19 @@ Bộ khung M0/M0.5 theo `plan-video-module-v4.html`. Pipeline: sản phẩm → 
 
 **Import:** trong một package dùng `#src/...` (Node subpath imports, khai báo ở `"imports"` của `package.json`), ví dụ `import { claimJobs } from '#src/queue/index.ts'`. Giữa các package dùng `@vm/core`. Web dùng alias `~/` của Nuxt. ESLint chặn import tương đối `./`, `../`.
 
+### Cấu trúc `apps/api`
+
+Một request đi lần lượt: **route → controller → service → repository**.
+
+| Tầng | Thư mục | Trách nhiệm |
+|---|---|---|
+| Route | `src/routes/` | Khai báo method + path, trỏ tới controller. Không có logic. |
+| Controller | `src/controllers/` | Đọc request, validate bằng schema, gọi service, chọn status và body trả về. |
+| Service | `src/services/` | Nghiệp vụ: phối hợp repository với các quy tắc trong `@vm/core`, ném `AppError` (400/404/409). |
+| Repository | `src/repositories/` | Chỉ truy vấn Drizzle (không biết HTTP). |
+
+`src/schemas.ts` gom toàn bộ schema Zod cho dữ liệu đầu vào (params, query phân trang, body) và type suy ra từ chúng. `src/shared.ts` gom các hàm dùng lại được: `AppError` + các hàm dựng lỗi (`badRequest`, `notFound`, `conflict`), `validate()` và phân trang `toPage()`.
+
 ## Chạy dev
 
 Cần Node 24, pnpm, Docker. ffmpeg cần cho render thật (hiện render đang là stub).
