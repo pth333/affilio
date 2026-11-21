@@ -1,81 +1,158 @@
 @import 'tailwindcss';
 
-/* Token màu: đổi theo chế độ sáng/tối, Tailwind dùng qua bg-panel, text-muted, border-line… */
+/* Dark mode bật bằng class `.dark` trên <html> (xem composables/useTheme.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────── Token màu (sáng) ───────────── */
 :root {
-  --bg: #f6f7f9;
-  --panel: #fff;
-  --text: #1d2330;
-  --muted: #6b7280;
-  --line: #e3e6eb;
-  --accent: #2f6fed;
-  --ok: #15803d;
-  --warn: #b45309;
-  --bad: #b91c1c;
-  color-scheme: light dark;
+  --bg: #f8f9fc;
+  --surface: #ffffff;
+  --surface-2: #fbfbfd;
+  --text: #292a36;
+  --muted: #888b9b;
+  --line: #eaeaf1;
+  --hover: #f5f5fa;
+  --primary: #7860e5;
+  --primary-strong: #7354cf;
+  --primary-soft: #efebfc;
+  --primary-chip: #ede9f8;
+  --primary-chip-fg: #8d76c7;
+  --ok: #3f9d63;
+  --ok-soft: #e9f6ee;
+  --warn: #d38a1f;
+  --warn-soft: #fdf3e3;
+  --bad: #d9534f;
+  --bad-soft: #fcecec;
+  --info: #4b86d6;
+  --info-soft: #eaf2fc;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111418;
-    --panel: #1a1e24;
-    --text: #e6e8eb;
-    --muted: #9aa3ad;
-    --line: #2b313a;
-    --accent: #6b9bff;
-    --ok: #4ade80;
-    --warn: #fbbf24;
-    --bad: #f87171;
-  }
+
+/* ───────────── Token màu (tối) ───────────── */
+.dark {
+  --bg: #17181e;
+  --surface: #202128;
+  --surface-2: #1c1d23;
+  --text: #ebebf4;
+  --muted: #9a9baa;
+  --line: #34353d;
+  --hover: #2a2b35;
+  --primary: #8b76ee;
+  --primary-strong: #a08ef3;
+  --primary-soft: #2e2a44;
+  --primary-chip: #322d47;
+  --primary-chip-fg: #b5a6ef;
+  --ok: #5fbf83;
+  --ok-soft: #1f3329;
+  --warn: #e8a643;
+  --warn-soft: #3a2f1d;
+  --bad: #ef7470;
+  --bad-soft: #3d2424;
+  --info: #6fa3ea;
+  --info-soft: #1f2c3d;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-bg: var(--bg);
-  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-fg: var(--text);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --color-accent: var(--accent);
+  --color-hover: var(--hover);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-chip: var(--primary-chip);
+  --color-primary-chip-fg: var(--primary-chip-fg);
   --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
-  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius-card: 10px;
 }
 
 @layer base {
-  body {
-    @apply bg-bg text-fg font-sans text-sm leading-normal;
+  /* Cỡ chữ gốc lớn hơn bản demo (12–13px) → 14px, màn rộng 15px. Mọi rem trong Tailwind scale theo. */
+  html {
+    font-size: 14px;
   }
-  a {
-    @apply text-accent;
+  @media (min-width: 1280px) {
+    html {
+      font-size: 15px;
+    }
+  }
+  body {
+    @apply bg-bg font-sans text-fg leading-normal antialiased;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
   }
 }
 
 /* Thành phần dùng lại nhiều chỗ; còn lại viết utility thẳng trong template. */
 @layer components {
-  .panel {
-    @apply mb-4 rounded-lg border border-line bg-panel p-4;
+  .card {
+    @apply rounded-(--radius-card) border border-line bg-surface;
+  }
+  .eyebrow {
+    @apply text-[0.78rem] font-semibold tracking-[0.06em] text-muted uppercase;
   }
   .field {
-    @apply rounded-md border border-line bg-panel px-2.5 py-1.5 outline-none focus:border-accent;
+    @apply h-10 rounded-lg border border-line bg-surface px-3 text-fg outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-3 focus:ring-primary/15;
   }
   .btn {
-    @apply cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1.5 disabled:cursor-default disabled:opacity-50;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 font-medium whitespace-nowrap text-fg transition-colors hover:bg-hover disabled:opacity-50 disabled:hover:bg-surface;
+  }
+  .btn-sm {
+    @apply h-8 gap-1.5 px-3 text-[0.9rem];
   }
   .btn-primary {
-    @apply border-accent bg-accent text-white;
+    @apply border-primary bg-primary text-white hover:border-primary-strong hover:bg-primary-strong disabled:hover:bg-primary;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-hover;
   }
   .btn-ok {
-    @apply border-ok text-ok;
-  }
-  .btn-warn {
-    @apply border-warn text-warn;
+    @apply border-ok bg-ok text-white hover:opacity-90 hover:bg-ok;
   }
   .btn-bad {
-    @apply border-bad text-bad;
+    @apply border-bad/40 text-bad hover:bg-bad-soft;
+  }
+  .btn-warn {
+    @apply border-warn/40 text-warn hover:bg-warn-soft;
+  }
+  .icon-btn {
+    @apply inline-flex size-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-hover hover:text-fg;
   }
   .badge {
-    @apply inline-block rounded-full border border-line px-2 text-xs whitespace-nowrap;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[0.8rem] font-medium whitespace-nowrap;
   }
   .kbd {
-    @apply rounded border border-line px-1 text-[11px] text-muted;
+    @apply rounded border border-current/30 px-1.5 text-[0.75rem] opacity-70;
+  }
+  .tabs {
+    @apply inline-flex gap-1 rounded-lg bg-hover p-1;
+  }
+  .tab {
+    @apply rounded-md px-3.5 py-1.5 font-medium text-muted transition-colors hover:text-fg;
+  }
+  .tab-active {
+    @apply bg-surface text-fg shadow-sm;
+  }
+  .table-head {
+    @apply text-left text-[0.78rem] font-semibold tracking-[0.05em] text-muted uppercase;
   }
 }

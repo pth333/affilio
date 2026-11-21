@@ -1,147 +1,133 @@
 <script setup lang="ts">
-import { apiErrorMessage, api } from '~/composables/useApi';
-import { STATUS_LABEL, VIDEO_STATUSES, type Page, type Product, type VideoListItem, type VideoStatus } from '~/types';
+import { AI_QUOTA, BEST_HOOK, CHANNELS, CURRENT_USER, DASHBOARD_STATS, DRAFTS } from '~/data/mock';
 
-const BUSY: readonly VideoStatus[] = ['queued', 'drafting', 'auto_check', 'previewing', 'revising', 'rendering'];
+definePageMeta({ title: 'Tổng quan' });
 
-const status = ref<VideoStatus | ''>('pending_review');
-const items = ref<VideoListItem[]>([]);
-const cursor = ref<string | null>(null);
-const loading = ref(false);
-const error = ref('');
-
-async function load(reset = true): Promise<void> {
-  loading.value = true;
-  error.value = '';
-  try {
-    const page = await api<Page<VideoListItem>>('/videos', {
-      query: { status: status.value || undefined, cursor: reset ? undefined : (cursor.value ?? undefined), limit: 30 },
-    });
-    items.value = reset ? page.items : [...items.value, ...page.items];
-    cursor.value = page.nextCursor;
-  } catch (err) {
-    error.value = apiErrorMessage(err);
-  } finally {
-    loading.value = false;
-  }
-}
-
-// Sản phẩm + tạo video
-const products = ref<Product[]>([]);
-const form = reactive({ name: '', affiliateUrl: '', description: '' });
-const productId = ref('');
-const busy = ref(false);
-
-async function loadProducts(): Promise<void> {
-  try {
-    products.value = (await api<Page<Product>>('/products', { query: { limit: 100 } })).items;
-    if (!productId.value) productId.value = products.value[0]?.id ?? '';
-  } catch (err) {
-    error.value = apiErrorMessage(err);
-  }
-}
-
-async function addProduct(): Promise<void> {
-  busy.value = true;
-  error.value = '';
-  try {
-    const p = await api<Product>('/products', { method: 'POST', body: { ...form, description: form.description || undefined } });
-    Object.assign(form, { name: '', affiliateUrl: '', description: '' });
-    await loadProducts();
-    productId.value = p.id;
-  } catch (err) {
-    error.value = apiErrorMessage(err);
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function createVideo(): Promise<void> {
-  if (!productId.value) return;
-  busy.value = true;
-  error.value = '';
-  try {
-    await api('/videos', { method: 'POST', body: { productId: productId.value } });
-    status.value = '';
-  } catch (err) {
-    error.value = apiErrorMessage(err);
-  } finally {
-    busy.value = false;
-  }
-}
-
-watch(status, () => load());
-
-// Tự làm mới khi còn video đang xử lý.
-let timer: ReturnType<typeof setInterval> | undefined;
-onMounted(() => {
-  void Promise.all([load(), loadProducts()]);
-  timer = setInterval(() => {
-    if (!loading.value && items.value.some((v) => BUSY.includes(v.status))) void load();
-  }, 5000);
-});
-onBeforeUnmount(() => clearInterval(timer));
-
-function fmt(ts: string): string {
-  return new Date(ts).toLocaleString('vi-VN');
-}
+const now = new Date();
+const period = ref('7');
+const activeChannels = CHANNELS.filter((c) => c.status === 'active');
+const topDrafts = DRAFTS.slice(0, 3);
+const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
 </script>
 
 <template>
-  <section class="panel">
-    <h3 class="mb-3 text-base font-semibold">Tạo video</h3>
-    <form class="flex flex-wrap items-center gap-2" @submit.prevent="addProduct">
-      <input v-model="form.name" class="field" placeholder="Tên sản phẩm" required maxlength="200" />
-      <input v-model="form.affiliateUrl" class="field min-w-50 flex-1" type="url" placeholder="Link affiliate" required />
-      <input v-model="form.description" class="field min-w-50 flex-1" placeholder="Mô tả (tuỳ chọn)" />
-      <button class="btn" :disabled="busy">Thêm sản phẩm</button>
-    </form>
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-      <select v-model="productId" class="field" :disabled="products.length === 0">
-        <option v-if="products.length === 0" value="">Chưa có sản phẩm</option>
-        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
-      <button class="btn btn-primary" :disabled="busy || !productId" @click="createVideo">Tạo video nháp</button>
+  <PageHeader :eyebrow="formatLongDate(now)" :title="`${greetingByHour(now)}, ${CURRENT_USER.name}`">
+    <template #title-suffix>
+      <AppIcon name="sun" :size="26" class="text-warn" />
+    </template>
+    <template #actions>
+      <NuxtLink to="/review" class="btn btn-primary"><AppIcon name="plus" :size="17" /> Tạo lô video mới</NuxtLink>
+    </template>
+  </PageHeader>
+
+  <!-- Banner AI -->
+  <section class="card mb-6 flex flex-wrap items-center gap-4 border-primary/20 bg-primary-soft/60 p-5">
+    <span class="grid size-11 place-items-center rounded-xl bg-primary text-white"><AppIcon name="sparkles" :size="22" /></span>
+    <div class="min-w-0 flex-1">
+      <p class="font-semibold">AI đã làm việc trong lúc bạn nghỉ ngơi.</p>
+      <p class="text-muted">{{ DASHBOARD_STATS.pending }} video mới đang chờ bạn duyệt — mất khoảng 5 phút để xem hết.</p>
+    </div>
+    <NuxtLink to="/review" class="btn">Vào hộp thư duyệt <AppIcon name="arrow-right" :size="16" /></NuxtLink>
+  </section>
+
+  <!-- Chỉ số -->
+  <section class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <StatCard label="Chờ duyệt" :value="DASHBOARD_STATS.pending" hint="Cần bạn xem" icon="inbox" />
+    <StatCard label="Sẵn sàng đăng" :value="DASHBOARD_STATS.ready" hint="Đã duyệt" icon="circle-check" />
+    <StatCard label="Video đã đăng tuần này" :value="DASHBOARD_STATS.publishedThisWeek" :trend="DASHBOARD_STATS.weeklyGrowth">
+      <BarSparkline :values="DASHBOARD_STATS.weeklyBars" :height="36" />
+    </StatCard>
+    <StatCard label="Hạn mức AI hôm nay" :value="`${AI_QUOTA.used}/${AI_QUOTA.limit}`" icon="zap">
+      <ProgressBar :value="AI_QUOTA.used" :max="AI_QUOTA.limit" label="Hạn mức AI đã dùng" />
+      <div class="mt-2 flex justify-between text-[0.85rem] text-muted">
+        <span>Còn {{ quotaLeft }} lượt tạo</span>
+        <span>Đặt lại lúc 00:00</span>
+      </div>
+    </StatCard>
+  </section>
+
+  <!-- Hiệu quả các kênh -->
+  <section class="mb-8">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <h2 class="text-[1.2rem] font-bold">Hiệu quả các kênh</h2>
+      <div class="relative">
+        <select v-model="period" class="field h-9 appearance-none pr-8" aria-label="Khoảng thời gian">
+          <option value="7">7 ngày qua</option>
+          <option value="30">30 ngày qua</option>
+          <option value="90">90 ngày qua</option>
+        </select>
+        <AppIcon name="chevron-down" :size="15" class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted" />
+      </div>
+    </div>
+    <div class="grid gap-4 lg:grid-cols-3">
+      <article v-for="c in activeChannels" :key="c.id" class="card p-5">
+        <div class="flex items-center gap-3">
+          <ProductThumb :name="c.name" :color="c.color" :size="40" />
+          <div class="min-w-0">
+            <p class="truncate font-semibold">{{ c.name }}</p>
+            <p class="text-[0.85rem] text-muted">{{ c.handle }}</p>
+          </div>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-[1.6rem] font-bold">{{ formatCompact(c.followers) }}</span>
+          <span class="text-muted">lượt xem</span>
+          <span class="badge ml-auto bg-ok-soft text-ok">{{ formatPercent(c.growth, true) }}</span>
+        </div>
+        <LineChart :values="c.trend" :color="c.color" :height="64" class="my-3" />
+        <div class="grid grid-cols-2 gap-3 border-t border-line pt-3 text-[0.9rem]">
+          <div>
+            <p class="text-muted">Lượt nhấp link</p>
+            <p class="font-semibold">{{ formatNumber(c.views) }}</p>
+          </div>
+          <div>
+            <p class="text-muted">Video đã đăng</p>
+            <p class="font-semibold">{{ c.videos }}</p>
+          </div>
+        </div>
+      </article>
     </div>
   </section>
 
-  <section class="panel">
-    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <h3 class="text-base font-semibold">Video</h3>
-      <div class="flex flex-wrap items-center gap-2">
-        <select v-model="status" class="field">
-          <option value="">Tất cả</option>
-          <option v-for="s in VIDEO_STATUSES" :key="s" :value="s">{{ STATUS_LABEL[s] }}</option>
-        </select>
-        <button class="btn" :disabled="loading" @click="load()">Làm mới</button>
+  <!-- Chờ duyệt + hook nổi bật -->
+  <section class="grid gap-4 xl:grid-cols-[1fr_380px]">
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between border-b border-line px-5 py-4">
+        <h2 class="text-[1.1rem] font-bold">Đang chờ bạn duyệt</h2>
+        <NuxtLink to="/review" class="text-[0.9rem] font-medium text-primary hover:underline">Xem tất cả</NuxtLink>
       </div>
+      <ul>
+        <li v-for="d in topDrafts" :key="d.id" class="flex items-center gap-3 border-b border-line px-5 py-3.5 last:border-b-0 hover:bg-hover">
+          <ProductThumb :name="d.productName" :color="d.color" :size="42" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-medium">{{ d.productName }}</p>
+            <p class="truncate text-[0.85rem] text-muted">{{ d.channelName }} · {{ d.duration }} giây · tạo lúc {{ d.createdAt }}</p>
+          </div>
+          <ScoreBadge :score="d.score" />
+          <NuxtLink :to="{ path: '/review', query: { id: d.id } }" class="btn btn-sm">Duyệt <AppIcon name="chevron-right" :size="15" /></NuxtLink>
+        </li>
+      </ul>
     </div>
-    <p v-if="error" class="mb-2 text-bad">{{ error }}</p>
-    <table class="w-full border-collapse text-left">
-      <thead>
-        <tr class="border-b border-line text-xs text-muted">
-          <th class="p-2 font-medium">Sản phẩm</th>
-          <th class="p-2 font-medium">Trạng thái</th>
-          <th class="hidden p-2 font-medium sm:table-cell">Cập nhật</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="v in items" :key="v.id" class="border-b border-line align-top">
-          <td class="p-2">
-            <NuxtLink :to="`/videos/${v.id}`" class="hover:underline">{{ v.productName }}</NuxtLink>
-            <div class="text-xs text-muted">{{ v.id }}</div>
-            <div v-if="v.failedReason" class="text-xs text-bad">{{ v.failedReason }}</div>
-          </td>
-          <td class="p-2"><StatusBadge :status="v.status" /></td>
-          <td class="hidden p-2 text-muted sm:table-cell">{{ fmt(v.updatedAt) }}</td>
-        </tr>
-        <tr v-if="!loading && items.length === 0">
-          <td colspan="3" class="p-2 text-muted">Không có video nào.</td>
-        </tr>
-      </tbody>
-    </table>
-    <div v-if="cursor" class="mt-2">
-      <button class="btn" :disabled="loading" @click="load(false)">Xem thêm</button>
+
+    <!-- Thẻ tối: hook nổi bật -->
+    <div class="relative overflow-hidden rounded-(--radius-card) border border-[#40374f] bg-[#2b2838] p-6 text-white">
+      <div class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[radial-gradient(circle,#3d354e,transparent_70%)]" />
+      <p class="eyebrow relative text-[#b9add0]">Hook nổi bật tuần này</p>
+      <p class="relative mt-3 text-[1.3rem] leading-snug font-semibold">“{{ BEST_HOOK.text }}”</p>
+      <p class="relative mt-2 text-[0.9rem] text-[#b9add0]">{{ BEST_HOOK.channel }}</p>
+      <dl class="relative mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
+        <div>
+          <dt class="text-[0.8rem] text-[#b9add0]">Lượt xem</dt>
+          <dd class="text-[1.15rem] font-bold">{{ formatCompact(BEST_HOOK.views) }}</dd>
+        </div>
+        <div>
+          <dt class="text-[0.8rem] text-[#b9add0]">Xem hết</dt>
+          <dd class="text-[1.15rem] font-bold">{{ formatPercent(BEST_HOOK.completion) }}</dd>
+        </div>
+        <div>
+          <dt class="text-[0.8rem] text-[#b9add0]">So với TB kênh</dt>
+          <dd class="text-[1.15rem] font-bold">{{ String(BEST_HOOK.multiplier).replace('.', ',') }}x</dd>
+        </div>
+      </dl>
     </div>
   </section>
 </template>

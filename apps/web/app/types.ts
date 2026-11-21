@@ -1,4 +1,5 @@
 // Kiểu dữ liệu API trả về (giữ tối thiểu, khớp apps/api/src/routes/*).
+import type { IconName } from '~/utils/icons';
 
 export const VIDEO_STATUSES = [
   'queued', 'drafting', 'auto_check', 'previewing', 'pending_review', 'approved', 'rendering',
@@ -52,3 +53,87 @@ export const STATUS_LABEL: Record<VideoStatus, string> = {
   published: 'Đã đăng', rejected_auto: 'Bị luật chặn', rejected: 'Bị từ chối', needs_changes: 'Cần sửa',
   revising: 'Đang sửa', failed: 'Lỗi',
 };
+
+// ───────────── Dữ liệu giao diện (hiện đang dùng mock ở data/mock.ts) ─────────────
+
+export type Tone = 'primary' | 'ok' | 'warn' | 'bad' | 'info' | 'muted';
+
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: IconName;
+  count?: number;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+  handle: string;
+  tag: string;
+  color: string;
+  status: 'active' | 'archived';
+  followers: number;
+  growth: number;
+  views: number;
+  videos: number;
+  series: string;
+  pending: number;
+  published: number;
+  /** Lượt xem theo ngày, dùng vẽ biểu đồ đường. */
+  trend: number[];
+}
+
+export interface LibraryProduct {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  price: number;
+  affiliateUrl: string;
+  hasClip: boolean;
+  color: string;
+}
+
+export interface DraftScene {
+  role: 'Mở đầu' | 'Thông tin' | 'Trải nghiệm' | 'Kêu gọi';
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface Draft {
+  id: string;
+  productName: string;
+  channelName: string;
+  hook: string;
+  score: number;
+  price: number;
+  createdAt: string;
+  duration: number;
+  color: string;
+  scenes: DraftScene[];
+  checks: { label: string; passed: boolean }[];
+}
+
+export interface ContentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  glyph: string;
+  cover: string;
+  structure: string[];
+  completionRate: number;
+  clickRate: number;
+  system: boolean;
+}
+
+export interface PublishItem {
+  id: string;
+  productName: string;
+  channelName: string;
+  caption: string;
+  hashtags: string[];
+  affiliateUrl: string;
+  approvedAt: string;
+  color: string;
+}
