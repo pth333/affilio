@@ -23,40 +23,40 @@ const items = ref<MessageItem[]>([]);
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 let seq = 0;
 
-function close(id: number): void {
+function closeMessage(id: number): void {
   clearTimeout(timers.get(id));
   timers.delete(id);
   items.value = items.value.filter((m) => m.id !== id);
 }
 
-function show(type: MessageType, text: string, options: MessageOptions = {}): number {
+function showMessage(type: MessageType, text: string, options: MessageOptions = {}): number {
   // Cùng nội dung đang hiện thì làm mới lại thay vì chồng thêm (vd. nhiều request lỗi một lúc).
   const dup = items.value.find((m) => m.type === type && m.text === text);
-  if (dup) close(dup.id);
+  if (dup) closeMessage(dup.id);
 
   const id = ++seq;
   items.value = [...items.value, { id, type, text }].slice(-MAX_VISIBLE);
   const duration = options.duration ?? DEFAULT_DURATION;
-  if (duration > 0) timers.set(id, setTimeout(() => close(id), duration));
+  if (duration > 0) timers.set(id, setTimeout(() => closeMessage(id), duration));
   return id;
 }
 
-function clear(): void {
+function clearAllMessages(): void {
   for (const t of timers.values()) clearTimeout(t);
   timers.clear();
   items.value = [];
 }
 
 export const message = {
-  success: (text: string, options?: MessageOptions) => show('success', text, options),
-  error: (text: string, options?: MessageOptions) => show('error', text, options),
-  warning: (text: string, options?: MessageOptions) => show('warning', text, options),
-  info: (text: string, options?: MessageOptions) => show('info', text, options),
-  close,
-  clear,
+  success: (text: string, options?: MessageOptions) => showMessage('success', text, options),
+  error: (text: string, options?: MessageOptions) => showMessage('error', text, options),
+  warning: (text: string, options?: MessageOptions) => showMessage('warning', text, options),
+  info: (text: string, options?: MessageOptions) => showMessage('info', text, options),
+  close: closeMessage,
+  clear: clearAllMessages,
 };
 
 /** Chỉ dành cho <AppMessage /> — đọc danh sách đang hiển thị. */
 export function useMessageList() {
-  return { items: readonly(items), close };
+  return { items: readonly(items), closeMessage };
 }

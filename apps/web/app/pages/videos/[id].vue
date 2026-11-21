@@ -17,9 +17,9 @@ const data = ref<VideoDetail | null>(null);
 const busy = ref(false);
 const noteText = reactive<Record<string, string>>({});
 
-async function load(): Promise<void> {
+async function loadVideoDetail(): Promise<void> {
   try {
-    data.value = await videoApi.detail(id.value);
+    data.value = await videoApi.getVideoDetail(id.value);
   } catch {
     data.value = null;
   }
@@ -27,14 +27,14 @@ async function load(): Promise<void> {
 
 const canReview = computed(() => data.value?.video.status === 'pending_review' && Boolean(data.value.version));
 
-async function decide(decision: ReviewDecision): Promise<void> {
+async function submitReviewDecision(decision: ReviewDecision): Promise<void> {
   const version = data.value?.version;
   if (!canReview.value || !version || busy.value) return;
   busy.value = true;
   try {
-    await videoApi.review(id.value, { versionId: version.id, decision });
+    await videoApi.submitReview(id.value, { versionId: version.id, decision });
     message.success(DECISION_MESSAGE[decision]);
-    await load();
+    await loadVideoDetail();
   } catch {
     // interceptor đã hiện thông báo lỗi
   } finally {
@@ -42,16 +42,16 @@ async function decide(decision: ReviewDecision): Promise<void> {
   }
 }
 
-async function addNote(sceneId: string): Promise<void> {
+async function submitSceneNote(sceneId: string): Promise<void> {
   const version = data.value?.version;
   const text = noteText[sceneId]?.trim();
   if (!version || !text) return;
   busy.value = true;
   try {
-    await videoApi.addNote(id.value, { versionId: version.id, sceneId, text });
+    await videoApi.addSceneNote(id.value, { versionId: version.id, sceneId, text });
     noteText[sceneId] = '';
     message.success('AI đã nhận ghi chú và đang chỉnh sửa bản nháp.');
-    await load();
+    await loadVideoDetail();
   } catch {
     // interceptor đã hiện thông báo lỗi
   } finally {
@@ -60,20 +60,20 @@ async function addNote(sceneId: string): Promise<void> {
 }
 
 /** Phím tắt: A duyệt, R từ chối, N cần sửa (bỏ qua khi đang gõ). */
-function onKey(e: KeyboardEvent): void {
+function handleShortcutKey(e: KeyboardEvent): void {
   const target = e.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || e.ctrlKey || e.metaKey || e.altKey) return;
   const map: Record<string, ReviewDecision> = { a: 'approve', r: 'reject', n: 'needs_changes' };
   const decision = map[e.key.toLowerCase()];
-  if (decision) void decide(decision);
+  if (decision) void submitReviewDecision(decision);
 }
 
 onMounted(() => {
-  void load();
-  window.addEventListener('keydown', onKey);
+  void loadVideoDetail();
+  window.addEventListener('keydown', handleShortcutKey);
 });
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
-watch(id, () => load());
+onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcutKey));
+watch(id, () => loadVideoDetail());
 </script>
 
 <template>
@@ -92,13 +92,13 @@ watch(id, () => load());
       </div>
       <p v-if="data.video.failedReason" class="mt-2 text-bad">Lỗi ở bước {{ data.video.failedStep }}: {{ data.video.failedReason }}</p>
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <button class="btn btn-ok" :disabled="!canReview || busy" @click="decide('approve')">
+        <button class="btn btn-ok" :disabled="!canReview || busy" @click="submitReviewDecision('approve')">
           <AppIcon name="check" :size="16" /> Duyệt <kbd class="kbd">A</kbd>
         </button>
-        <button class="btn btn-warn" :disabled="!canReview || busy" @click="decide('needs_changes')">
+        <button class="btn btn-warn" :disabled="!canReview || busy" @click="submitReviewDecision('needs_changes')">
           <AppIcon name="message-square" :size="16" /> Cần sửa <kbd class="kbd">N</kbd>
         </button>
-        <button class="btn btn-bad" :disabled="!canReview || busy" @click="decide('reject')">
+        <button class="btn btn-bad" :disabled="!canReview || busy" @click="submitReviewDecision('reject')">
           <AppIcon name="x" :size="16" /> Từ chối <kbd class="kbd">R</kbd>
         </button>
         <span class="text-muted">Preview video sẽ có ở M1 (render FFmpeg).</span>
@@ -133,7 +133,7 @@ watch(id, () => load());
             {{ n.text }} <span class="text-muted">({{ n.status }})</span>
           </li>
         </ul>
-        <form class="flex items-center gap-2" @submit.prevent="addNote(scene.id)">
+        <form class="flex items-center gap-2" @submit.prevent="submitSceneNote(scene.id)">
           <input v-model="noteText[scene.id]" class="field flex-1" placeholder="Ghi chú cho cảnh này" maxlength="2000" />
           <button class="btn" :disabled="busy || !noteText[scene.id]?.trim()">Ghi chú</button>
         </form>

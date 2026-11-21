@@ -18,6 +18,6 @@ export interface CreateProductBody {
 const PRODUCTS = '/products';
 
 export const productApi = {
-  list: (params: ProductListParams = {}, config?: AxiosRequestConfig) => http.get<Page<Product>>(PRODUCTS, { ...config, params }),
-  create: (body: CreateProductBody, config?: AxiosRequestConfig) => http.post<Product>(PRODUCTS, body, config),
+  getProducts: (params: ProductListParams = {}, config?: AxiosRequestConfig) => http.get<Page<Product>>(PRODUCTS, { ...config, params }),
+  createProduct: (body: CreateProductBody, config?: AxiosRequestConfig) => http.post<Product>(PRODUCTS, body, config),
 };

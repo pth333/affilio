@@ -12,12 +12,12 @@ const counts = computed(() => ({
   archived: channels.value.filter((c) => c.status === 'archived').length,
 }));
 
-function toggleArchive(channel: Channel): void {
+function toggleChannelArchive(channel: Channel): void {
   channel.status = channel.status === 'active' ? 'archived' : 'active';
   message.success(channel.status === 'archived' ? `Đã lưu trữ kênh “${channel.name}”` : `Đã khôi phục kênh “${channel.name}”`);
 }
 
-function duplicate(channel: Channel): void {
+function duplicateChannel(channel: Channel): void {
   channels.value.push({ ...channel, id: `${channel.id}-copy-${Date.now()}`, name: `${channel.name} (bản sao)`, pending: 0, published: 0 });
   message.success(`Đã nhân bản kênh “${channel.name}”`);
 }
@@ -76,8 +76,8 @@ function duplicate(channel: Channel): void {
         <button class="btn btn-sm" @click="message.info('Trình chỉnh định hướng kênh đang được xây dựng.')">
           <AppIcon name="sliders-horizontal" :size="15" /> Chỉnh định hướng
         </button>
-        <button class="btn btn-sm btn-ghost ml-auto" @click="duplicate(c)"><AppIcon name="copy" :size="15" /> Nhân bản</button>
-        <button class="btn btn-sm btn-ghost" @click="toggleArchive(c)">
+        <button class="btn btn-sm btn-ghost ml-auto" @click="duplicateChannel(c)"><AppIcon name="copy" :size="15" /> Nhân bản</button>
+        <button class="btn btn-sm btn-ghost" @click="toggleChannelArchive(c)">
           <AppIcon :name="c.status === 'active' ? 'download' : 'rotate-ccw'" :size="15" />
           {{ c.status === 'active' ? 'Lưu trữ' : 'Khôi phục' }}
         </button>

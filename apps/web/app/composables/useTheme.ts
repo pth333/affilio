@@ -3,12 +3,12 @@ const STORAGE_KEY = 'affilio-theme';
 const isDark = ref(false);
 let initialized = false;
 
-function apply(dark: boolean): void {
+function applyTheme(dark: boolean): void {
   isDark.value = dark;
   document.documentElement.classList.toggle('dark', dark);
 }
 
-function readSaved(): string | null {
+function readSavedTheme(): string | null {
   try {
     return localStorage.getItem(STORAGE_KEY);
   } catch (err) {
@@ -20,12 +20,12 @@ function readSaved(): string | null {
 export function useTheme() {
   if (!initialized && import.meta.client) {
     initialized = true;
-    const saved = readSaved();
-    apply(saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const saved = readSavedTheme();
+    applyTheme(saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
   }
 
   function toggleTheme(): void {
-    apply(!isDark.value);
+    applyTheme(!isDark.value);
     try {
       localStorage.setItem(STORAGE_KEY, isDark.value ? 'dark' : 'light');
     } catch (err) {

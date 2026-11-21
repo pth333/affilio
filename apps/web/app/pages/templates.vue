@@ -16,7 +16,7 @@ const visible = computed(() =>
   TEMPLATES.filter((t) => tab.value === 'all' || (tab.value === 'system' ? t.system : !t.system)),
 );
 
-function useTemplate(t: ContentTemplate): void {
+function selectTemplate(t: ContentTemplate): void {
   message.success(`Đã chọn định dạng “${t.name}” cho lô video tiếp theo.`);
 }
 </script>
@@ -68,7 +68,7 @@ function useTemplate(t: ContentTemplate): void {
             <p class="font-semibold">{{ t.clickRate }}</p>
           </div>
         </div>
-        <button class="btn btn-sm mt-4 w-full" @click="useTemplate(t)">Dùng định dạng này</button>
+        <button class="btn btn-sm mt-4 w-full" @click="selectTemplate(t)">Dùng định dạng này</button>
       </div>
     </article>
   </div>

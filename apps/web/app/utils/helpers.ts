@@ -54,7 +54,7 @@ export function formatDateTime(value: string | Date): string {
 }
 
 /** Lời chào theo giờ trong ngày. */
-export function greetingByHour(date: Date = new Date()): string {
+export function getGreetingByHour(date: Date = new Date()): string {
   const h = date.getHours();
   if (h < 11) return 'Chào buổi sáng';
   if (h < 14) return 'Chào buổi trưa';
@@ -65,7 +65,7 @@ export function greetingByHour(date: Date = new Date()): string {
 // ───────────── Chuỗi ─────────────
 
 /** "Minh Anh" → "MA"; "Góc Công Nghệ" (max=1) → "G" */
-export function initials(name: string, max = 2): string {
+export function getInitials(name: string, max = 2): string {
   return name
     .trim()
     .split(/\s+/)

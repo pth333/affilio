@@ -7,7 +7,7 @@ const emit = defineEmits<{ close: [] }>();
 const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
 
-function isActive(to: string): boolean {
+function isNavItemActive(to: string): boolean {
   return to === '/' ? route.path === '/' : route.path.startsWith(to);
 }
 
@@ -39,7 +39,7 @@ watch(
       @click="message.info('Bạn đang có một không gian làm việc.')"
     >
       <span class="grid size-8 place-items-center rounded-md bg-primary-soft text-[0.85rem] font-bold text-primary-strong">
-        {{ initials(CURRENT_USER.workspace) }}
+        {{ getInitials(CURRENT_USER.workspace) }}
       </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate font-semibold">{{ CURRENT_USER.workspace }}</span>
@@ -55,7 +55,7 @@ watch(
           <NuxtLink
             :to="item.to"
             class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 font-medium transition-colors"
-            :class="isActive(item.to) ? 'bg-primary-soft text-primary-strong' : 'text-fg/80 hover:bg-hover hover:text-fg'"
+            :class="isNavItemActive(item.to) ? 'bg-primary-soft text-primary-strong' : 'text-fg/80 hover:bg-hover hover:text-fg'"
           >
             <AppIcon :name="item.icon" :size="18" />
             <span class="flex-1">{{ item.label }}</span>
@@ -108,7 +108,7 @@ watch(
 
       <div class="mt-2 flex items-center gap-2.5 px-1.5 pt-2">
         <span class="grid size-9 place-items-center rounded-full bg-primary text-[0.85rem] font-semibold text-white">
-          {{ initials(CURRENT_USER.name) }}
+          {{ getInitials(CURRENT_USER.name) }}
         </span>
         <span class="min-w-0 flex-1">
           <span class="block truncate font-semibold">{{ CURRENT_USER.name }}</span>

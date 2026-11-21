@@ -22,7 +22,7 @@ const current = computed(() => drafts.value.find((d) => d.id === selectedId.valu
 const passedChecks = computed(() => current.value?.checks.filter((c) => c.passed).length ?? 0);
 
 /** Bỏ bản nháp đã xử lý khỏi danh sách và chuyển sang bản kế tiếp. */
-function next(id: string): void {
+function removeDraftAndSelectNext(id: string): void {
   const idx = drafts.value.findIndex((d) => d.id === id);
   drafts.value.splice(idx, 1);
   selectedId.value = drafts.value[Math.min(idx, drafts.value.length - 1)]?.id ?? '';
@@ -30,42 +30,42 @@ function next(id: string): void {
   feedback.value = '';
 }
 
-function approve(): void {
+function approveDraft(): void {
   if (!current.value) return;
-  next(current.value.id);
+  removeDraftAndSelectNext(current.value.id);
   message.success('Đã duyệt video. Video đã được chuyển sang mục Đăng tải.');
 }
 
-function reject(): void {
+function rejectDraft(): void {
   if (!current.value) return;
-  next(current.value.id);
+  removeDraftAndSelectNext(current.value.id);
   message.warning('Đã từ chối bản nháp. AI sẽ rút kinh nghiệm cho lần sau.');
 }
 
-function sendFeedback(): void {
+function sendDraftFeedback(): void {
   if (!current.value) return;
   if (!feedback.value.trim()) {
     message.warning('Hãy nhập góp ý trước khi gửi.');
     return;
   }
-  next(current.value.id);
+  removeDraftAndSelectNext(current.value.id);
   message.success('AI đã nhận ghi chú và đang chỉnh sửa bản nháp.');
 }
 
 /** Phím tắt: A duyệt, R từ chối, N góp ý (bỏ qua khi đang gõ). */
-function onKey(e: KeyboardEvent): void {
+function handleShortcutKey(e: KeyboardEvent): void {
   const t = e.target;
   if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const key = e.key.toLowerCase();
-  if (key === 'a') approve();
-  else if (key === 'r') reject();
+  if (key === 'a') approveDraft();
+  else if (key === 'r') rejectDraft();
   else if (key === 'n') showFeedback.value = true;
 }
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+onMounted(() => window.addEventListener('keydown', handleShortcutKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcutKey));
 
-function formatSeconds(s: number): string {
+function formatTimecode(s: number): string {
   return `0:${String(s).padStart(2, '0')}`;
 }
 </script>
@@ -145,7 +145,7 @@ function formatSeconds(s: number): string {
             <li v-for="s in current.scenes" :key="s.role" class="rounded-lg border border-line p-3.5">
               <div class="mb-1 flex items-center justify-between gap-2">
                 <span class="font-semibold text-primary-strong">{{ s.role }}</span>
-                <span class="text-[0.8rem] text-muted tabular-nums">{{ formatSeconds(s.start) }} – {{ formatSeconds(s.end) }}</span>
+                <span class="text-[0.8rem] text-muted tabular-nums">{{ formatTimecode(s.start) }} – {{ formatTimecode(s.end) }}</span>
               </div>
               <p>{{ s.text }}</p>
             </li>
@@ -201,16 +201,16 @@ function formatSeconds(s: number): string {
             placeholder="Ví dụ: Mở đầu cần nhắc giá sớm hơn…"
           />
           <div class="mt-2 flex gap-2">
-            <button class="btn btn-sm btn-primary" @click="sendFeedback">Gửi góp ý</button>
+            <button class="btn btn-sm btn-primary" @click="sendDraftFeedback">Gửi góp ý</button>
             <button class="btn btn-sm btn-ghost" @click="showFeedback = false">Huỷ</button>
           </div>
         </div>
         <div class="grid gap-2">
-          <button class="btn btn-ok" @click="approve"><AppIcon name="check" :size="16" /> Duyệt video <kbd class="kbd">A</kbd></button>
+          <button class="btn btn-ok" @click="approveDraft"><AppIcon name="check" :size="16" /> Duyệt video <kbd class="kbd">A</kbd></button>
           <button class="btn" @click="showFeedback = true">
             <AppIcon name="message-square" :size="16" /> Góp ý cho AI <kbd class="kbd">N</kbd>
           </button>
-          <button class="btn btn-bad" @click="reject"><AppIcon name="x" :size="16" /> Từ chối <kbd class="kbd">R</kbd></button>
+          <button class="btn btn-bad" @click="rejectDraft"><AppIcon name="x" :size="16" /> Từ chối <kbd class="kbd">R</kbd></button>
         </div>
       </div>
     </aside>

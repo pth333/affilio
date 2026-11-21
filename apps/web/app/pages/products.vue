@@ -16,16 +16,16 @@ const filtered = computed(() => {
   );
 });
 
-async function copyLink(product: LibraryProduct): Promise<void> {
+async function copyAffiliateLink(product: LibraryProduct): Promise<void> {
   if (await copyToClipboard(product.affiliateUrl)) message.success('Đã sao chép vào bộ nhớ tạm');
   else message.error('Trình duyệt chưa cho phép sao chép. Hãy sao chép thủ công.');
 }
 
-// ── Thêm sản phẩm (mock): khi có API thay bằng productApi.create(…) (api/product.ts)
+// ── Thêm sản phẩm (mock): khi có API thay bằng productApi.createProduct(…) (api/product.ts)
 const showForm = ref(false);
 const form = reactive({ name: '', affiliateUrl: '', category: 'Công nghệ', price: 0 });
 
-function addProduct(): void {
+function addLibraryProduct(): void {
   products.value.unshift({
     id: `p-${Date.now()}`,
     name: form.name.trim(),
@@ -51,7 +51,7 @@ function addProduct(): void {
     </template>
   </PageHeader>
 
-  <form v-if="showForm" class="card mb-5 grid gap-3 p-5 md:grid-cols-[2fr_2fr_1fr_1fr_auto]" @submit.prevent="addProduct">
+  <form v-if="showForm" class="card mb-5 grid gap-3 p-5 md:grid-cols-[2fr_2fr_1fr_1fr_auto]" @submit.prevent="addLibraryProduct">
     <input v-model="form.name" class="field" placeholder="Tên sản phẩm" required maxlength="200" />
     <input v-model="form.affiliateUrl" class="field" type="url" placeholder="Link affiliate" required />
     <select v-model="form.category" class="field">
@@ -99,7 +99,7 @@ function addProduct(): void {
             <td class="px-5 py-3.5 text-muted">{{ p.category }}</td>
             <td class="px-5 py-3.5 font-medium tabular-nums">{{ formatCurrency(p.price) }}</td>
             <td class="px-5 py-3.5">
-              <button class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline" @click="copyLink(p)">
+              <button class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline" @click="copyAffiliateLink(p)">
                 <AppIcon name="link" :size="15" /> Sao chép link
               </button>
             </td>

@@ -11,10 +11,10 @@ const items = ref<VideoListItem[]>([]);
 const cursor = ref<string | null>(null);
 const loading = ref(false);
 
-async function load(reset = true, silent = false): Promise<void> {
+async function loadVideos(reset = true, silent = false): Promise<void> {
   loading.value = true;
   try {
-    const page = await videoApi.list(
+    const page = await videoApi.getVideos(
       { status: status.value || undefined, cursor: reset ? undefined : (cursor.value ?? undefined), limit: 30 },
       { silent },
     );
@@ -36,17 +36,17 @@ const busy = ref(false);
 
 async function loadProducts(): Promise<void> {
   try {
-    products.value = (await productApi.list({ limit: 100 })).items;
+    products.value = (await productApi.getProducts({ limit: 100 })).items;
     if (!productId.value) productId.value = products.value[0]?.id ?? '';
   } catch {
     products.value = [];
   }
 }
 
-async function addProduct(): Promise<void> {
+async function addProductAndSelect(): Promise<void> {
   busy.value = true;
   try {
-    const p = await productApi.create({ ...form, description: form.description || undefined });
+    const p = await productApi.createProduct({ ...form, description: form.description || undefined });
     Object.assign(form, { name: '', affiliateUrl: '', description: '' });
     await loadProducts();
     productId.value = p.id;
@@ -58,13 +58,13 @@ async function addProduct(): Promise<void> {
   }
 }
 
-async function createVideo(): Promise<void> {
+async function createDraftVideo(): Promise<void> {
   if (!productId.value) return;
   busy.value = true;
   try {
-    await videoApi.create(productId.value);
+    await videoApi.createVideo(productId.value);
     message.success('Đã tạo video nháp. AI đang viết kịch bản.');
-    if (status.value === '') await load();
+    if (status.value === '') await loadVideos();
     else status.value = '';
   } catch {
     // interceptor đã hiện thông báo lỗi
@@ -73,14 +73,14 @@ async function createVideo(): Promise<void> {
   }
 }
 
-watch(status, () => load());
+watch(status, () => loadVideos());
 
 // Tự làm mới khi còn video đang xử lý.
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
-  void Promise.all([load(), loadProducts()]);
+  void Promise.all([loadVideos(), loadProducts()]);
   timer = setInterval(() => {
-    if (!loading.value && items.value.some((v) => BUSY.includes(v.status))) void load(true, true);
+    if (!loading.value && items.value.some((v) => BUSY.includes(v.status))) void loadVideos(true, true);
   }, 5000);
 });
 onBeforeUnmount(() => clearInterval(timer));
@@ -91,7 +91,7 @@ onBeforeUnmount(() => clearInterval(timer));
 
   <section class="card mb-5 p-5">
     <h2 class="mb-4 text-[1.1rem] font-semibold">Tạo video</h2>
-    <form class="flex flex-wrap items-center gap-2" @submit.prevent="addProduct">
+    <form class="flex flex-wrap items-center gap-2" @submit.prevent="addProductAndSelect">
       <input v-model="form.name" class="field" placeholder="Tên sản phẩm" required maxlength="200" />
       <input v-model="form.affiliateUrl" class="field min-w-50 flex-1" type="url" placeholder="Link affiliate" required />
       <input v-model="form.description" class="field min-w-50 flex-1" placeholder="Mô tả (tuỳ chọn)" />
@@ -102,7 +102,7 @@ onBeforeUnmount(() => clearInterval(timer));
         <option v-if="products.length === 0" value="">Chưa có sản phẩm</option>
         <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
-      <button class="btn btn-primary" :disabled="busy || !productId" @click="createVideo">
+      <button class="btn btn-primary" :disabled="busy || !productId" @click="createDraftVideo">
         <AppIcon name="sparkles" :size="16" /> Tạo video nháp
       </button>
     </div>
@@ -116,7 +116,7 @@ onBeforeUnmount(() => clearInterval(timer));
           <option value="">Tất cả trạng thái</option>
           <option v-for="s in VIDEO_STATUSES" :key="s" :value="s">{{ STATUS_LABEL[s] }}</option>
         </select>
-        <button class="btn btn-sm h-9" :disabled="loading" @click="load()"><AppIcon name="rotate-ccw" :size="15" /> Làm mới</button>
+        <button class="btn btn-sm h-9" :disabled="loading" @click="loadVideos()"><AppIcon name="rotate-ccw" :size="15" /> Làm mới</button>
       </div>
     </div>
     <div class="overflow-x-auto">
@@ -145,7 +145,7 @@ onBeforeUnmount(() => clearInterval(timer));
       </table>
     </div>
     <div v-if="cursor" class="border-t border-line px-5 py-3">
-      <button class="btn btn-sm" :disabled="loading" @click="load(false)">Xem thêm</button>
+      <button class="btn btn-sm" :disabled="loading" @click="loadVideos(false)">Xem thêm</button>
     </div>
   </section>
 </template>

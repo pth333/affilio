@@ -9,6 +9,6 @@ withDefaults(defineProps<{ name: string; color: string; size?: number }>(), { si
     :style="{ width: `${size}px`, height: `${size}px`, color, background: `color-mix(in srgb, ${color} 14%, transparent)`, fontSize: `${size * 0.4}px` }"
     aria-hidden="true"
   >
-    {{ initials(name, 1) }}
+    {{ getInitials(name, 1) }}
   </span>
 </template>

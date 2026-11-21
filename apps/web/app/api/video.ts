@@ -11,15 +11,15 @@ export interface VideoListParams {
 }
 
 const VIDEOS = '/videos';
-const videoPath = (id: string): string => `${VIDEOS}/${encodeURIComponent(id)}`;
+const buildVideoPath = (id: string): string => `${VIDEOS}/${encodeURIComponent(id)}`;
 
 export const videoApi = {
-  list: (params: VideoListParams = {}, config?: AxiosRequestConfig) => http.get<Page<VideoListItem>>(VIDEOS, { ...config, params }),
-  detail: (id: string, config?: AxiosRequestConfig) => http.get<VideoDetail>(videoPath(id), config),
-  create: (productId: string, config?: AxiosRequestConfig) => http.post<unknown>(VIDEOS, { productId }, config),
+  getVideos: (params: VideoListParams = {}, config?: AxiosRequestConfig) => http.get<Page<VideoListItem>>(VIDEOS, { ...config, params }),
+  getVideoDetail: (id: string, config?: AxiosRequestConfig) => http.get<VideoDetail>(buildVideoPath(id), config),
+  createVideo: (productId: string, config?: AxiosRequestConfig) => http.post<unknown>(VIDEOS, { productId }, config),
   /** Gửi kèm versionId: server từ chối nếu đã có bản mới hơn (tránh duyệt nhầm bản cũ). */
-  review: (id: string, body: { versionId: string; decision: ReviewDecision }, config?: AxiosRequestConfig) =>
-    http.post<unknown>(`${videoPath(id)}/review`, body, config),
-  addNote: (id: string, body: { versionId: string; sceneId: string; text: string }, config?: AxiosRequestConfig) =>
-    http.post<unknown>(`${videoPath(id)}/notes`, body, config),
+  submitReview: (id: string, body: { versionId: string; decision: ReviewDecision }, config?: AxiosRequestConfig) =>
+    http.post<unknown>(`${buildVideoPath(id)}/review`, body, config),
+  addSceneNote: (id: string, body: { versionId: string; sceneId: string; text: string }, config?: AxiosRequestConfig) =>
+    http.post<unknown>(`${buildVideoPath(id)}/notes`, body, config),
 };

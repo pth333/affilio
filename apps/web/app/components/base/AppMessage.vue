@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Vùng hiển thị toast — đặt một lần trong app.vue. Gọi bằng message.success/error/warning/info.
-const { items, close } = useMessageList();
+const { items, closeMessage } = useMessageList();
 
 const STYLE: Record<MessageType, { icon: IconName; color: string }> = {
   success: { icon: 'circle-check', color: 'text-[#b6d5b7]' },
@@ -30,7 +30,7 @@ const STYLE: Record<MessageType, { icon: IconName; color: string }> = {
       >
         <AppIcon :name="STYLE[m.type].icon" :size="19" :class="STYLE[m.type].color" class="mt-px" />
         <span class="min-w-0 flex-1 leading-snug">{{ m.text }}</span>
-        <button type="button" class="-my-0.5 rounded p-0.5 text-[#aaa0b7] hover:text-white" aria-label="Đóng thông báo" @click="close(m.id)">
+        <button type="button" class="-my-0.5 rounded p-0.5 text-[#aaa0b7] hover:text-white" aria-label="Đóng thông báo" @click="closeMessage(m.id)">
           <AppIcon name="x" :size="16" />
         </button>
       </div>

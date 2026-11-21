@@ -20,12 +20,12 @@ watch(selectedId, () => {
   postUrl.value = '';
 });
 
-async function copy(text: string): Promise<void> {
+async function copyText(text: string): Promise<void> {
   if (await copyToClipboard(text)) message.success('Đã sao chép vào bộ nhớ tạm');
   else message.error('Trình duyệt chưa cho phép sao chép. Hãy sao chép thủ công.');
 }
 
-function confirmPosted(): void {
+function confirmPublished(): void {
   if (!current.value || !canConfirm.value) return;
   const id = current.value.id;
   queue.value = queue.value.filter((p) => p.id !== id);
@@ -43,7 +43,7 @@ const CHECKPOINTS: { key: Checkpoint; label: string }[] = [
 const checkpoint = ref<Checkpoint>('24h');
 const metrics = reactive({ views: 0, completion: 0, clicks: 0 });
 
-function saveMetrics(): void {
+function savePerformanceMetrics(): void {
   if (metrics.views < 0 || metrics.clicks < 0 || metrics.completion < 0 || metrics.completion > 100) {
     message.warning('Số liệu không hợp lệ. Tỉ lệ xem hết phải từ 0 đến 100%.');
     return;
@@ -102,7 +102,7 @@ const totals = computed(() => ({
         <p class="eyebrow mb-1.5">Caption</p>
         <div class="flex items-start gap-2 rounded-lg border border-line p-3.5">
           <p class="flex-1">{{ current.caption }}</p>
-          <button class="icon-btn size-8" aria-label="Sao chép caption" @click="copy(current.caption)"><AppIcon name="copy" :size="16" /></button>
+          <button class="icon-btn size-8" aria-label="Sao chép caption" @click="copyText(current.caption)"><AppIcon name="copy" :size="16" /></button>
         </div>
 
         <p class="eyebrow mt-5 mb-1.5">Hashtag</p>
@@ -110,14 +110,14 @@ const totals = computed(() => ({
           <p class="flex flex-1 flex-wrap gap-1.5">
             <span v-for="h in current.hashtags" :key="h" class="badge bg-primary-soft text-primary-strong">{{ h }}</span>
           </p>
-          <button class="icon-btn size-8" aria-label="Sao chép hashtag" @click="copy(current.hashtags.join(' '))"><AppIcon name="copy" :size="16" /></button>
+          <button class="icon-btn size-8" aria-label="Sao chép hashtag" @click="copyText(current.hashtags.join(' '))"><AppIcon name="copy" :size="16" /></button>
         </div>
 
         <p class="eyebrow mt-5 mb-1.5">Link affiliate</p>
         <div class="flex items-center gap-2 rounded-lg border border-line p-3.5">
           <AppIcon name="link" :size="16" class="text-muted" />
           <p class="flex-1 truncate text-primary">{{ current.affiliateUrl }}</p>
-          <button class="icon-btn size-8" aria-label="Sao chép link" @click="copy(current.affiliateUrl)"><AppIcon name="copy" :size="16" /></button>
+          <button class="icon-btn size-8" aria-label="Sao chép link" @click="copyText(current.affiliateUrl)"><AppIcon name="copy" :size="16" /></button>
         </div>
 
         <button class="btn btn-primary mt-6" @click="message.info('Gói nội dung sẽ tải được khi video render xong.')">
@@ -136,7 +136,7 @@ const totals = computed(() => ({
             <span class="mb-1.5 block text-[0.9rem] text-muted">Link bài đăng</span>
             <input v-model="postUrl" type="url" class="field w-full" placeholder="https://www.tiktok.com/@…/video/…" />
           </label>
-          <button class="btn btn-ok mt-4 w-full" :disabled="!canConfirm" @click="confirmPosted">
+          <button class="btn btn-ok mt-4 w-full" :disabled="!canConfirm" @click="confirmPublished">
             <AppIcon name="check" :size="16" /> Xác nhận đã đăng
           </button>
         </div>
@@ -148,7 +148,7 @@ const totals = computed(() => ({
               {{ c.label }}
             </button>
           </div>
-          <form class="grid gap-3" @submit.prevent="saveMetrics">
+          <form class="grid gap-3" @submit.prevent="savePerformanceMetrics">
             <label>
               <span class="mb-1 block text-[0.9rem] text-muted">Lượt xem</span>
               <input v-model.number="metrics.views" type="number" min="0" class="field w-full" />

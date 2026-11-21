@@ -11,7 +11,7 @@ const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
 </script>
 
 <template>
-  <PageHeader :eyebrow="formatLongDate(now)" :title="`${greetingByHour(now)}, ${CURRENT_USER.name}`">
+  <PageHeader :eyebrow="formatLongDate(now)" :title="`${getGreetingByHour(now)}, ${CURRENT_USER.name}`">
     <template #title-suffix>
       <AppIcon name="sun" :size="26" class="text-warn" />
     </template>
