@@ -1,5 +1,6 @@
 // Các hàm dùng lại nhiều nơi — gom vào một file (quy ước repo). Nuxt tự import, không cần `import`.
 import axios from 'axios';
+import type { Channel, LibraryProduct, ProductSuggestion, SuggestionReason } from '~/types';
 
 const LOCALE = 'vi-VN';
 
@@ -73,6 +74,48 @@ export function getInitials(name: string, max = 2): string {
     .slice(0, max)
     .map((w) => w.charAt(0).toUpperCase())
     .join('');
+}
+
+// ───────────── Gợi ý sản phẩm theo kênh ─────────────
+
+/** "Đồ công nghệ dưới 300K" → 300000; "dưới 1,5tr" → 1500000; không có mức giá → null. */
+export function parseMaxPrice(text: string): number | null {
+  const match = /(?:dưới|<)\s*(\d+(?:[.,]\d+)?)\s*(k|nghìn|tr|triệu)?/iu.exec(text);
+  if (!match?.[1]) return null;
+  const value = Number(match[1].replace(',', '.'));
+  const unit = match[2]?.toLowerCase();
+  const multiplier = unit === 'k' || unit === 'nghìn' ? 1_000 : unit === 'tr' || unit === 'triệu' ? 1_000_000 : 1;
+  return Number.isFinite(value) ? value * multiplier : null;
+}
+
+/**
+ * Chấm điểm sản phẩm theo định hướng kênh: cùng ngành hàng (bắt buộc), giá nằm trong mức của series, đã có clip.
+ * Trả về danh sách giảm dần theo điểm; sản phẩm khác ngành bị loại.
+ */
+export function suggestProductsForChannel(channel: Channel, products: readonly LibraryProduct[]): ProductSuggestion[] {
+  const maxPrice = parseMaxPrice(channel.series);
+  return products
+    .filter((product) => product.category.toLowerCase() === channel.tag.toLowerCase())
+    .map((product) => {
+      let score = 60;
+      const reasons: SuggestionReason[] = [{ label: 'Đúng ngành hàng', matched: true }];
+      if (maxPrice !== null) {
+        if (product.price <= maxPrice) {
+          score += 25;
+          reasons.push({ label: `Trong mức ${formatCurrency(maxPrice)}`, matched: true });
+        } else {
+          reasons.push({ label: `Vượt mức ${formatCurrency(maxPrice)}`, matched: false });
+        }
+      } else {
+        score += 10;
+      }
+      if (product.hasClip) {
+        score += 15;
+        reasons.push({ label: 'Có clip sẵn', matched: true });
+      }
+      return { product, score: Math.min(score, 100), reasons };
+    })
+    .sort((a, b) => b.score - a.score || a.product.price - b.product.price);
 }
 
 // ───────────── Trình duyệt ─────────────

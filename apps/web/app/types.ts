@@ -137,3 +137,16 @@ export interface PublishItem {
   approvedAt: string;
   color: string;
 }
+
+/** Một tiêu chí khi chấm điểm gợi ý; matched=false là điểm trừ (vd. vượt giá). */
+export interface SuggestionReason {
+  label: string;
+  matched: boolean;
+}
+
+/** Sản phẩm được gợi ý cho một kênh, kèm điểm phù hợp (0–100) và lý do. */
+export interface ProductSuggestion {
+  product: LibraryProduct;
+  score: number;
+  reasons: SuggestionReason[];
+}
