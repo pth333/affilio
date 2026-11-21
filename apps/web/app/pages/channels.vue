@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { CHANNELS } from '~/data/mock';
-import type { Channel } from '~/types';
+import { CHANNELS, PRODUCTS } from '~/data/mock';
+import type { Channel, ProductSuggestion } from '~/types';
 
 definePageMeta({ title: 'Kênh của tôi' });
 
@@ -20,6 +20,16 @@ function toggleChannelArchive(channel: Channel): void {
 function duplicateChannel(channel: Channel): void {
   channels.value.push({ ...channel, id: `${channel.id}-copy-${Date.now()}`, name: `${channel.name} (bản sao)`, pending: 0, published: 0 });
   message.success(`Đã nhân bản kênh “${channel.name}”`);
+}
+
+// ── Gợi ý sản phẩm theo định hướng kênh (mock: chấm điểm trên PRODUCTS ở client).
+//    Khi có API, thay suggestProductsForChannel bằng endpoint gợi ý trong api/channel.ts.
+const suggestionChannel = ref<Channel | null>(null);
+const suggestions = ref<ProductSuggestion[]>([]);
+
+function openProductSuggestions(channel: Channel): void {
+  suggestions.value = suggestProductsForChannel(channel, PRODUCTS);
+  suggestionChannel.value = channel;
 }
 </script>
 
@@ -57,7 +67,7 @@ function duplicateChannel(channel: Channel): void {
         <p class="mt-1 font-medium">{{ c.series }}</p>
       </div>
 
-      <div class="mt-4 grid grid-cols-3 gap-3 text-[0.9rem]">
+      <div class="mt-4 mb-5 grid grid-cols-3 gap-3 text-[0.9rem]">
         <div>
           <p class="text-muted">Người theo dõi</p>
           <p class="font-semibold">{{ formatCompact(c.followers) }}</p>
@@ -72,17 +82,34 @@ function duplicateChannel(channel: Channel): void {
         </div>
       </div>
 
-      <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-        <button class="btn btn-sm" @click="message.info('Trình chỉnh định hướng kênh đang được xây dựng.')">
-          <AppIcon name="sliders-horizontal" :size="15" /> Chỉnh định hướng
+      <div class="mt-auto flex items-center gap-1.5 border-t border-line pt-4">
+        <button
+          class="btn btn-sm flex-1 border-primary/25 bg-primary-soft text-primary-strong hover:border-primary/40 hover:bg-primary-chip"
+          @click="openProductSuggestions(c)"
+        >
+          <AppIcon name="sparkles" :size="15" /> Gợi ý sản phẩm
         </button>
-        <button class="btn btn-sm btn-ghost ml-auto" @click="duplicateChannel(c)"><AppIcon name="copy" :size="15" /> Nhân bản</button>
-        <button class="btn btn-sm btn-ghost" @click="toggleChannelArchive(c)">
-          <AppIcon :name="c.status === 'active' ? 'download' : 'rotate-ccw'" :size="15" />
-          {{ c.status === 'active' ? 'Lưu trữ' : 'Khôi phục' }}
+        <button
+          class="icon-btn"
+          title="Chỉnh định hướng"
+          aria-label="Chỉnh định hướng"
+          @click="message.info('Trình chỉnh định hướng kênh đang được xây dựng.')"
+        >
+          <AppIcon name="sliders-horizontal" :size="17" />
+        </button>
+        <button class="icon-btn" title="Nhân bản" aria-label="Nhân bản" @click="duplicateChannel(c)"><AppIcon name="copy" :size="17" /></button>
+        <button
+          class="icon-btn"
+          :title="c.status === 'active' ? 'Lưu trữ' : 'Khôi phục'"
+          :aria-label="c.status === 'active' ? 'Lưu trữ' : 'Khôi phục'"
+          @click="toggleChannelArchive(c)"
+        >
+          <AppIcon :name="c.status === 'active' ? 'download' : 'rotate-ccw'" :size="17" />
         </button>
       </div>
     </article>
   </div>
   <p v-else class="card p-10 text-center text-muted">Chưa có kênh nào trong mục này.</p>
+
+  <ProductSuggestionDrawer :channel="suggestionChannel" :suggestions="suggestions" @close="suggestionChannel = null" />
 </template>
