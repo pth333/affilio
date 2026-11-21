@@ -9,3 +9,6 @@ backups/
 dist/
 coverage/
 *.log
+
+# File HTML mẫu thiết kế (tham khảo, không commit)
+affilio-demo.html
