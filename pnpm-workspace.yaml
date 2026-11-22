@@ -3,3 +3,8 @@ packages:
   - apps/*
 allowBuilds:
   esbuild: true
+  vue-demi: true
+# @nuxt/icon 2.6.3 kéo @nuxt/devtools-kit 4.2.0 (cảnh báo "addCustomTab is deprecated").
+# Ghim 2.6.2 — vẫn trong range ^2.6.2 của @nuxt/ui — để dùng chung devtools-kit 3.4.4 của Nuxt.
+overrides:
+  '@nuxt/icon': 2.6.2

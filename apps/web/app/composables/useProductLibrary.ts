@@ -96,5 +96,5 @@ export function useProductLibrary() {
     return created.id;
   }
 
-  return { products: readonly(products), addProduct, addClips, ensureApiProductId };
+  return { products, addProduct, addClips, ensureApiProductId };
 }

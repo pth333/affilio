@@ -165,6 +165,23 @@ export function pickAccentColor(seed: string): string {
   return ACCENT_COLORS[hash % ACCENT_COLORS.length] ?? ACCENT_COLORS[0];
 }
 
+// ───────────── Bảng dữ liệu (Nuxt UI UTable) ─────────────
+
+/**
+ * Giao diện dùng chung cho các bảng UTable: khớp lưới, khoảng cách và màu với thiết kế kem/đỏ.
+ * Truyền qua prop `:ui`; chỗ nào cần khác thì spread rồi ghi đè khoá tương ứng.
+ */
+export const TABLE_UI = {
+  root: 'relative overflow-x-auto',
+  base: 'w-full border-collapse',
+  thead: 'border-b border-line',
+  tbody: 'divide-y divide-line',
+  th: 'px-5 py-3 text-[0.78rem] font-semibold tracking-[0.05em] text-muted uppercase',
+  td: 'px-5 py-3 align-top whitespace-normal text-fg',
+  separator: 'hidden',
+  empty: 'px-5 py-12',
+} as const;
+
 // ───────────── Trình duyệt ─────────────
 
 /** Sao chép vào clipboard; trả về false nếu trình duyệt không cho phép. */

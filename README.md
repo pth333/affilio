@@ -10,7 +10,7 @@ Bộ khung M0/M0.5 theo `plan-video-module-v4.html`. Pipeline: sản phẩm → 
 | `apps/api` | Fastify 5, REST `/api/*` (products, videos, review, notes, health/ready) |
 | `apps/worker` | Worker nhận job theo queue `llm` / `render` |
 | `apps/cli` | CLI `affilio` thao tác nhanh không cần UI |
-| `apps/web` | Nuxt 4 SPA + Tailwind CSS v4 — hộp duyệt video. Token màu (sáng/tối) và class dùng chung (`panel`, `btn`, `field`, `badge`) ở `app/assets/main.css` |
+| `apps/web` | Nuxt 4 SPA + Tailwind CSS v4 + Nuxt UI (bảng dùng `UTable`) — hộp duyệt video. Token màu (sáng/tối) và class dùng chung (`panel`, `btn`, `field`, `badge`) ở `app/assets/main.css` |
 | `deploy/` | docker-compose (prod + dev), Caddyfile, script backup |
 | `.github/` | CI (typecheck, lint, test, build, docker build), deploy lên VPS qua GHCR, Dependabot |
 
