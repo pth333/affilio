@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Image dùng chung cho api / worker / cli (khác nhau ở command). Chạy TS trực tiếp bằng tsx, không bước build.
 
-FROM node:24-slim AS deps
+FROM node:26-slim AS deps
 RUN npm install -g pnpm@12.5.1
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -14,7 +14,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod --ignore-scripts \
       --filter "@affilio/api..." --filter "@affilio/worker..." --filter "@affilio/cli..."
 
-FROM node:24-slim AS runtime
+FROM node:26-slim AS runtime
 # ffmpeg cho render (M1), font Noto để phụ đề tiếng Việt hiển thị đúng, tini để chuyển tín hiệu SIGTERM.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg fonts-noto-core tini \
