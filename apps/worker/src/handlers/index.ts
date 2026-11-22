@@ -1,4 +1,4 @@
-import { JOB_TYPES } from '@vm/core';
+import { JOB_TYPES } from '@affilio/core';
 import type { JobHandler } from '#src/types.ts';
 import { draftHandler } from '#src/handlers/draft.ts';
 import { renderFinalHandler, renderPreviewHandler } from '#src/handlers/render.ts';

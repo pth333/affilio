@@ -9,7 +9,7 @@ import {
   type Job,
   type JobQueue,
   type Logger,
-} from '@vm/core';
+} from '@affilio/core';
 import { HANDLERS } from '#src/handlers/index.ts';
 import type { WorkerDeps } from '#src/types.ts';
 

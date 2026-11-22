@@ -20,11 +20,11 @@ import {
   videoVersion,
   type Db,
   type DefaultContext,
-} from '@vm/core';
+} from '@affilio/core';
 import { z } from 'zod';
 
 /**
- * CLI `vm` — thao tác trực tiếp trên DB (cùng nghiệp vụ với API), dùng khi chưa có UI hoặc để debug.
+ * CLI `affilio` — thao tác trực tiếp trên DB (cùng nghiệp vụ với API), dùng khi chưa có UI hoặc để debug.
  * Chạy: pnpm cli <lệnh> [tham số]
  */
 
@@ -178,7 +178,7 @@ async function main(): Promise<number> {
   }
 
   const config = loadConfig();
-  const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'vm-cli' });
+  const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'affilio-cli' });
   try {
     const session = await ensureDefaultWorkspace(handle.db, { workspaceName: config.SEED_WORKSPACE_NAME, userEmail: config.SEED_USER_EMAIL });
     await command({ db: handle.db, session, positionals: rest, values });

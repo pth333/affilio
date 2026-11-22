@@ -1,4 +1,4 @@
-import type { Db } from '@vm/core';
+import type { Db } from '@affilio/core';
 import { insertProduct, listProducts, type Product } from '#src/repositories/product.repository.ts';
 import type { CreateProductInput } from '#src/schemas.ts';
 import { toPage, type Page } from '#src/shared.ts';

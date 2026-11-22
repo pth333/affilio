@@ -1,4 +1,4 @@
-import { REVIEW_DECISIONS, VIDEO_STATUSES } from '@vm/core';
+import { REVIEW_DECISIONS, VIDEO_STATUSES } from '@affilio/core';
 import { z } from 'zod';
 
 /**

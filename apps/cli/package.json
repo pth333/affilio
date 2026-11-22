@@ -1,5 +1,5 @@
 {
-  "name": "@vm/cli",
+  "name": "@affilio/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,14 +7,14 @@
     "#src/*": "./src/*"
   },
   "bin": {
-    "vm": "./src/main.ts"
+    "affilio": "./src/main.ts"
   },
   "scripts": {
     "start": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@vm/core": "workspace:*",
+    "@affilio/core": "workspace:*",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },

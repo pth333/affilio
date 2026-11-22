@@ -1,5 +1,5 @@
 import { hostname } from 'node:os';
-import { createDb, createLogger, createProviders, createStorage, loadConfig, markVideoFailed, recoverExpiredJobs } from '@vm/core';
+import { createDb, createLogger, createProviders, createStorage, loadConfig, markVideoFailed, recoverExpiredJobs } from '@affilio/core';
 import { HANDLERS } from '#src/handlers/index.ts';
 import { runQueue } from '#src/runner.ts';
 
@@ -14,7 +14,7 @@ async function main(): Promise<void> {
   const workerId = config.WORKER_ID ?? `${hostname()}-${process.pid}`;
   const handle = createDb(config.DATABASE_URL, {
     max: config.WORKER_LLM_CONCURRENCY + config.WORKER_RENDER_CONCURRENCY + 2,
-    appName: 'vm-worker',
+    appName: 'affilio-worker',
   });
   const providers = createProviders(config);
   const deps = { db: handle.db, config, providers, storage: createStorage(config) };

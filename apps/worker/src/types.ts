@@ -1,4 +1,4 @@
-import type { AppConfig, Db, Job, JobQueue, Logger, ProviderSet, Storage } from '@vm/core';
+import type { AppConfig, Db, Job, JobQueue, Logger, ProviderSet, Storage } from '@affilio/core';
 
 export interface WorkerDeps {
   db: Db;
