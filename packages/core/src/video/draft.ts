@@ -6,13 +6,7 @@ import { asset, product, video } from '#src/db/schema.ts';
 import { enqueue, type Job } from '#src/queue/index.ts';
 import { REAL_ONLY_ROLES, SCENE_ROLES, SPEC_SCHEMA_VERSION, validateSpec, type Scene, type ValidationResult, type VideoSpec } from '#src/spec/schema.ts';
 import { writeAudit, type Video } from '#src/video/index.ts';
-
-/** Tên job dùng chung giữa API/CLI (enqueue) và worker (handler). */
-export const JOB_TYPES = {
-  draft: 'video.draft',
-  renderPreview: 'video.render_preview',
-  renderFinal: 'video.render_final',
-} as const;
+import { JOB_TYPES } from '#src/video/job-types.ts';
 
 export type DraftOutcome =
   | { ok: true; video: Video; job: Job }

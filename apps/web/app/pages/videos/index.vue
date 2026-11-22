@@ -63,7 +63,6 @@ onBeforeUnmount(() => clearInterval(timer));
 
 <template>
   <PageHeader
-    eyebrow="Dữ liệu thật từ API"
     title="Video"
     description="Tạo video nháp từ thư viện sản phẩm và theo dõi trạng thái xử lý của từng bản."
   >
@@ -102,7 +101,9 @@ onBeforeUnmount(() => clearInterval(timer));
         <div class="flex items-center gap-3">
           <ProductThumb :name="row.original.productName" :color="pickAccentColor(row.original.productName)" :size="38" />
           <div class="min-w-0">
-            <NuxtLink :to="`/videos/${row.original.id}`" class="font-medium hover:text-primary">{{ row.original.productName }}</NuxtLink>
+            <NuxtLink :to="{ path: '/review', query: { video: row.original.id } }" class="font-medium hover:text-primary">
+              {{ row.original.productName }}
+            </NuxtLink>
             <div class="text-[0.8rem] text-muted">{{ row.original.id }}</div>
             <div v-if="row.original.failedReason" class="text-[0.85rem] text-bad">{{ row.original.failedReason }}</div>
           </div>

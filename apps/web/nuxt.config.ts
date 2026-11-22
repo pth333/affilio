@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 // Affilio web. SPA thuần: mọi dữ liệu lấy qua /api (Caddy proxy ở prod, devProxy ở dev).
 // Auto-import: ref/computed/… (Vue), composables/, utils/ & api/ (named export), components/ (mọi thư mục con, không tiền tố).
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui'],
+  modules: ['@pinia/nuxt', '@nuxt/ui'],
   // Sáng/tối do app tự quản (composables/useTheme.ts); font đã nạp qua <link> bên dưới.
   ui: { colorMode: false, fonts: false },
   vite: { plugins: [tailwindcss()] },

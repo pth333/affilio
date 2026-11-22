@@ -13,6 +13,9 @@ const httpUrl = z.url({ protocol: /^https?$/ }).max(2000);
 /** Tham số đường dẫn `:id`. */
 export const idParamsSchema = z.object({ id: idSchema });
 
+/** Tham số đường dẫn của một cảnh trong video. */
+export const sceneParamsSchema = z.object({ id: idSchema, sceneId: idSchema });
+
 /** Phân trang theo con trỏ, dùng chung cho các endpoint danh sách. */
 export const pageQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -52,3 +55,17 @@ export const addReviewNoteSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 export type AddReviewNoteInput = z.infer<typeof addReviewNoteSchema>;
+
+/** Người duyệt sửa tay lời thoại của một cảnh (tạo phiên bản mới). */
+export const updateSceneSchema = z.object({
+  versionId: idSchema,
+  narration: z.string().trim().min(1).max(400),
+});
+export type UpdateSceneInput = z.infer<typeof updateSceneSchema>;
+
+/** Nhờ AI viết lại một cảnh, kèm chỉ dẫn tuỳ chọn. */
+export const reviseSceneSchema = z.object({
+  versionId: idSchema,
+  instruction: z.string().trim().max(1000).optional(),
+});
+export type ReviseSceneInput = z.infer<typeof reviseSceneSchema>;

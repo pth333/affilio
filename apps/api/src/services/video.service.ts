@@ -1,4 +1,13 @@
-import { requestDraft, requestFinalRender, reviewVideo, type Db, type ReviewDecision } from '@affilio/core';
+import {
+  editScene,
+  requestDraft,
+  requestFinalRender,
+  requestSceneRevision,
+  reviewVideo,
+  type Db,
+  type ReviewDecision,
+  type SceneWriteFailure,
+} from '@affilio/core';
 import {
   findOwnedVersion,
   findVersionBundle,
@@ -57,6 +66,45 @@ export async function createDraftVideo(
   const result = await requestDraft(db, params);
   if (!result.ok) throw notFound(result.message);
   return { video: result.video, jobId: result.job.id };
+}
+
+/** Đổi lỗi ghi cảnh của core thành HTTP: không thấy → 404, dữ liệu sai → 400, còn lại 409. */
+function sceneWriteError(reason: SceneWriteFailure, message: string) {
+  if (reason === 'not_found' || reason === 'scene_not_found') return notFound(message);
+  if (reason === 'invalid') return badRequest(message);
+  return conflict(message);
+}
+
+export interface EditVideoSceneParams {
+  workspaceId: string;
+  userId: string;
+  videoId: string;
+  sceneId: string;
+  versionId: string;
+  narration: string;
+}
+
+/** Người duyệt sửa tay lời thoại một cảnh; video vẫn nằm trong hộp duyệt. */
+export async function editVideoScene(db: Db, params: EditVideoSceneParams): Promise<{ versionId: string; versionNo: number }> {
+  const result = await editScene(db, params);
+  if (!result.ok) throw sceneWriteError(result.reason, result.message);
+  return { versionId: result.versionId, versionNo: result.versionNo };
+}
+
+export interface ReviseVideoSceneParams {
+  workspaceId: string;
+  userId: string;
+  videoId: string;
+  sceneId: string;
+  versionId: string;
+  instruction?: string | undefined;
+}
+
+/** Nhờ AI viết lại một cảnh; worker sẽ đưa video quay lại hộp duyệt. */
+export async function requestVideoSceneRevision(db: Db, params: ReviseVideoSceneParams): Promise<{ jobId: string }> {
+  const result = await requestSceneRevision(db, params);
+  if (!result.ok) throw sceneWriteError(result.reason, result.message);
+  return { jobId: result.jobId };
 }
 
 export interface SubmitReviewParams {

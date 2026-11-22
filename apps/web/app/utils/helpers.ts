@@ -1,6 +1,6 @@
 // Các hàm dùng lại nhiều nơi — gom vào một file (quy ước repo). Nuxt tự import, không cần `import`.
 import axios from 'axios';
-import type { Channel, LibraryProduct, ProductSuggestion, SuggestionReason } from '~/types';
+import type { Channel, LibraryProduct, ProductSuggestion, Scene, SuggestionReason } from '~/types';
 
 const LOCALE = 'vi-VN';
 
@@ -153,10 +153,72 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+// ───────────── Cảnh video ─────────────
+
+/** Nhãn tiếng Việt cho vai trò cảnh trong spec. */
+export const SCENE_ROLE_LABEL: Record<string, string> = {
+  hook: 'Mở đầu',
+  intro: 'Giới thiệu',
+  problem: 'Vấn đề',
+  benefit: 'Lợi ích',
+  demo: 'Demo',
+  proof: 'Minh chứng',
+  compare: 'So sánh',
+  cta: 'Kêu gọi',
+};
+
+/** Nhãn tiếng Việt cho luật kiểm tra tự động của worker. */
+export const CHECK_RULE_LABEL: Record<string, string> = {
+  duration_range: 'Độ dài video',
+  affiliate_link: 'Link affiliate',
+  ai_label: 'Nhãn nội dung AI',
+  no_overclaim: 'Không cam kết quá đà',
+  product_image_owner: 'Ảnh đúng sản phẩm',
+  mascot_within_scene: 'Mascot trong cảnh',
+  ai_clip_limit: 'Giới hạn clip AI',
+};
+
+/** Nhãn lịch sử duyệt. */
+export const REVIEW_DECISION_LABEL: Record<string, string> = {
+  approve: 'Đã duyệt',
+  reject: 'Đã từ chối',
+  needs_changes: 'Yêu cầu sửa',
+};
+
+/** Ước tính thời lượng cảnh (giây) khi chưa có TTS — khớp 15 ký tự/giây bên @affilio/core. */
+export function estimateSceneSeconds(scene: Pick<Scene, 'narration' | 'duration'>): number {
+  if (scene.duration) return scene.duration;
+  return Math.max(1.5, scene.narration.length / 15);
+}
+
+/** 76 → "1:16"; 3.4 → "0:03". */
+export function formatTimecode(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+export interface SceneTimelineItem {
+  scene: Scene;
+  index: number;
+  start: number;
+  seconds: number;
+}
+
+/** Dựng timeline: mỗi cảnh có mốc bắt đầu và thời lượng ước tính (dùng chung timeline + danh sách cảnh). */
+export function buildSceneTimeline(scenes: readonly Scene[]): SceneTimelineItem[] {
+  let cursor = 0;
+  return scenes.map((scene, index) => {
+    const seconds = estimateSceneSeconds(scene);
+    const item = { scene, index, start: cursor, seconds };
+    cursor += seconds;
+    return item;
+  });
+}
+
 // ───────────── Màu nhấn ─────────────
 
 /** Bảng màu nhấn ấm, lấy xoay vòng theo tên để sản phẩm/kênh mới luôn có màu ổn định. */
-const ACCENT_COLORS = ['#c9382a', '#4f8a58', '#cf7c2e', '#3f6f9e', '#a2476b', '#7c5aa6'] as const;
+const ACCENT_COLORS = ['#c9382a', '#4f8a58', '#cf7c2e', '#3f6f9e', '#8a5a3c', '#7a6a58'] as const;
 
 /** "Quạt mini Jisulife" → một màu trong ACCENT_COLORS (cùng tên luôn ra cùng màu). */
 export function pickAccentColor(seed: string): string {

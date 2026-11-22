@@ -13,8 +13,10 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.157",
     "@nuxt/ui": "^4.13.0",
+    "@pinia/nuxt": "^1.0.3",
     "axios": "^1.21.1",
     "nuxt": "^4.6.4",
+    "pinia": "^4.1.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {

@@ -8,4 +8,6 @@ export const videoRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', videoController.create);
   app.post('/:id/review', videoController.review);
   app.post('/:id/notes', videoController.addNote);
+  app.patch('/:id/scenes/:sceneId', videoController.updateScene);
+  app.post('/:id/scenes/:sceneId/revise', videoController.reviseScene);
 };

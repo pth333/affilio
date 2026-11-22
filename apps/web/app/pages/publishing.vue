@@ -53,11 +53,18 @@ const CHECKPOINTS: { key: Checkpoint; label: string }[] = [
   { key: '24h', label: '24 giờ' },
   { key: '7d', label: '7 ngày' },
 ];
+interface PerformanceMetrics {
+  views: number;
+  completion: number;
+  clicks: number;
+}
+
 const checkpoint = ref<Checkpoint>('24h');
-const metrics = reactive({ views: 0, completion: 0, clicks: 0 });
+const metrics = ref<PerformanceMetrics>({ views: 0, completion: 0, clicks: 0 });
 
 function savePerformanceMetrics(): void {
-  if (metrics.views < 0 || metrics.clicks < 0 || metrics.completion < 0 || metrics.completion > 100) {
+  const value = metrics.value;
+  if (value.views < 0 || value.clicks < 0 || value.completion < 0 || value.completion > 100) {
     message.warning('Số liệu không hợp lệ. Tỉ lệ xem hết phải từ 0 đến 100%.');
     return;
   }

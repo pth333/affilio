@@ -10,7 +10,7 @@ Bộ khung M0/M0.5 theo `plan-video-module-v4.html`. Pipeline: sản phẩm → 
 | `apps/api` | Fastify 5, REST `/api/*` (products, videos, review, notes, health/ready) |
 | `apps/worker` | Worker nhận job theo queue `llm` / `render` |
 | `apps/cli` | CLI `affilio` thao tác nhanh không cần UI |
-| `apps/web` | Nuxt 4 SPA + Tailwind CSS v4 + Nuxt UI (bảng dùng `UTable`) — hộp duyệt video. Token màu (sáng/tối) và class dùng chung (`panel`, `btn`, `field`, `badge`) ở `app/assets/main.css` |
+| `apps/web` | Nuxt 4 SPA + Tailwind CSS v4 + Nuxt UI (bảng dùng `UTable`) + Pinia (store dùng chung) — hộp duyệt video. Token màu (sáng/tối) và class dùng chung (`panel`, `btn`, `field`, `badge`) ở `app/assets/main.css` |
 | `deploy/` | docker-compose (prod + dev), Caddyfile, script backup |
 | `.github/` | CI (typecheck, lint, test, build, docker build), deploy lên VPS qua GHCR, Dependabot |
 
@@ -38,10 +38,18 @@ pnpm install
 cp .env.example .env          # bỏ trống CF_* thì dùng LLM/ảnh stub
 pnpm db:up                    # Postgres 16 ở cổng 5432
 pnpm db:migrate               # migration + seed workspace/user mặc định
-pnpm dev:api                  # http://127.0.0.1:3100
-pnpm dev:worker
-pnpm dev:web                  # http://localhost:3001 (proxy /api → API_PROXY_TARGET)
+pnpm dev                      # API + web + worker, Ctrl+C dừng cả 3
 ```
+
+`pnpm dev` (hoặc `make dev`) chạy đồng thời 3 service với log gộp, tiền tố `[api] [web] [worker]`:
+
+| Service | Địa chỉ |
+|---|---|
+| API | http://127.0.0.1:3100 |
+| Web | http://localhost:3001 (proxy `/api` → API) |
+| Worker | hàng đợi `llm` / `render` |
+
+Muốn chạy riêng từng service: `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker` (hoặc `make api`, `make web`, `make worker`). Các lệnh khác xem ở `make help`.
 
 > API dev dùng cổng **3100** để tránh đụng các dự án khác hay dùng 3000. Trong container vẫn là 3000.
 

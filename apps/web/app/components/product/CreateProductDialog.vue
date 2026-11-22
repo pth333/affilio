@@ -12,13 +12,26 @@ const { addProduct, addClips } = useProductLibrary();
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CLIP_BYTES = 200 * 1024 * 1024;
 
-const form = reactive({
-  name: '',
-  category: PRODUCT_CATEGORIES[0] ?? 'Công nghệ',
-  price: null as number | null,
-  affiliateUrl: '',
-  imageUrl: null as string | null,
-});
+interface ProductForm {
+  name: string;
+  category: string;
+  price: number | null;
+  affiliateUrl: string;
+  imageUrl: string | null;
+}
+
+/** Form trống; tách hàm để reset về đúng giá trị mặc định. */
+function createEmptyForm(): ProductForm {
+  return {
+    name: '',
+    category: PRODUCT_CATEGORIES[0] ?? 'Công nghệ',
+    price: null,
+    affiliateUrl: '',
+    imageUrl: null,
+  };
+}
+
+const form = ref<ProductForm>(createEmptyForm());
 const clips = ref<{ key: string; file: File }[]>([]);
 const draggingImage = ref(false);
 const draggingClip = ref(false);
@@ -26,18 +39,16 @@ const imageInput = ref<HTMLInputElement | null>(null);
 const clipInput = ref<HTMLInputElement | null>(null);
 
 const canSubmit = computed(
-  () => form.name.trim().length > 0 && /^https?:\/\/\S+$/i.test(form.affiliateUrl.trim()),
+  () => form.value.name.trim().length > 0 && /^https?:\/\/\S+$/i.test(form.value.affiliateUrl.trim()),
 );
 
 function resetForm(): void {
-  Object.assign(form, {
-    name: '',
-    category: PRODUCT_CATEGORIES[0] ?? 'Công nghệ',
-    price: null,
-    affiliateUrl: '',
-    imageUrl: null,
-  });
+  form.value = createEmptyForm();
   clips.value = [];
+}
+
+function clearImage(): void {
+  form.value.imageUrl = null;
 }
 
 // ── Ảnh sản phẩm
@@ -52,7 +63,7 @@ async function applyImageFile(file: File | null | undefined): Promise<void> {
     return;
   }
   try {
-    form.imageUrl = await readFileAsDataUrl(file);
+    form.value.imageUrl = await readFileAsDataUrl(file);
   } catch {
     message.error('Không đọc được ảnh. Hãy chọn ảnh khác.');
   }
@@ -105,11 +116,11 @@ function createProduct(): void {
     return;
   }
   const product = addProduct({
-    name: form.name,
-    category: form.category,
-    price: Number(form.price) || 0,
-    affiliateUrl: form.affiliateUrl,
-    imageUrl: form.imageUrl,
+    name: form.value.name,
+    category: form.value.category,
+    price: Number(form.value.price) || 0,
+    affiliateUrl: form.value.affiliateUrl,
+    imageUrl: form.value.imageUrl,
   });
   if (clips.value.length > 0) addClips(product.id, clips.value.map((clip) => clip.file));
 
@@ -191,7 +202,7 @@ function createProduct(): void {
               v-if="form.imageUrl"
               type="button"
               class="mt-2 inline-flex items-center gap-1 font-medium text-bad hover:underline"
-              @click="form.imageUrl = null"
+              @click="clearImage"
             >
               <AppIcon name="trash-2" :size="14" /> Xoá ảnh
             </button>

@@ -1,6 +1,23 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { addReviewNoteSchema, createVideoSchema, idParamsSchema, reviewVideoSchema, videoListQuerySchema } from '#src/schemas.ts';
-import { addSceneNote, createDraftVideo, getVideoDetail, listVideoPage, submitReview } from '#src/services/video.service.ts';
+import {
+  addReviewNoteSchema,
+  createVideoSchema,
+  idParamsSchema,
+  reviseSceneSchema,
+  reviewVideoSchema,
+  sceneParamsSchema,
+  updateSceneSchema,
+  videoListQuerySchema,
+} from '#src/schemas.ts';
+import {
+  addSceneNote,
+  createDraftVideo,
+  editVideoScene,
+  getVideoDetail,
+  listVideoPage,
+  requestVideoSceneRevision,
+  submitReview,
+} from '#src/services/video.service.ts';
 import { validate } from '#src/shared.ts';
 
 /**
@@ -45,5 +62,37 @@ export const videoController = {
     const { db, session } = req.server.deps;
     const note = await addSceneNote(db, { workspaceId: session.workspaceId, videoId: id, userId: session.userId, input });
     return reply.status(201).send(note);
+  },
+
+  /** Người duyệt sửa tay lời thoại một cảnh. */
+  async updateScene(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const { id, sceneId } = validate(sceneParamsSchema, req.params);
+    const body = validate(updateSceneSchema, req.body);
+    const { db, session } = req.server.deps;
+    const result = await editVideoScene(db, {
+      workspaceId: session.workspaceId,
+      userId: session.userId,
+      videoId: id,
+      sceneId,
+      ...body,
+    });
+    req.log.info({ videoId: id, sceneId, versionId: result.versionId }, 'người dùng sửa cảnh');
+    return reply.status(200).send(result);
+  },
+
+  /** Nhờ AI viết lại một cảnh; worker xử lý rồi đưa video về hộp duyệt. */
+  async reviseScene(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const { id, sceneId } = validate(sceneParamsSchema, req.params);
+    const body = validate(reviseSceneSchema, req.body);
+    const { db, session } = req.server.deps;
+    const result = await requestVideoSceneRevision(db, {
+      workspaceId: session.workspaceId,
+      userId: session.userId,
+      videoId: id,
+      sceneId,
+      ...body,
+    });
+    req.log.info({ videoId: id, sceneId, jobId: result.jobId }, 'đã xếp job AI sửa cảnh');
+    return reply.status(202).send(result);
   },
 };
