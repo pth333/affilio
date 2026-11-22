@@ -1,10 +1,10 @@
-import { canFinalRender, eq, transitionVideo, video } from '@vm/core';
+import { canFinalRender, eq, transitionVideo, video } from '@affilio/core';
 import type { JobHandler } from '#src/types.ts';
 import { videoPayloadSchema } from '#src/handlers/payload.ts';
 
 /**
  * Bộ khung: mới chuyển trạng thái. Render thật bằng FFmpeg (ảnh + zoompan + TTS + mascot,
- * cache theo sceneHash) làm ở M1 với các helper trong @vm/core/render.
+ * cache theo sceneHash) làm ở M1 với các helper trong @affilio/core/render.
  */
 export const renderPreviewHandler: JobHandler = {
   queue: 'render',

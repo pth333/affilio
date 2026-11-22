@@ -1,11 +1,11 @@
-import { createDb, createLogger, createStorage, ensureDefaultWorkspace, loadConfig, runMigrations } from '@vm/core';
+import { createDb, createLogger, createStorage, ensureDefaultWorkspace, loadConfig, runMigrations } from '@affilio/core';
 import { buildApp } from '#src/app.ts';
 
 const config = loadConfig();
 const logger = createLogger({ name: 'api', level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' });
 
 async function main(): Promise<void> {
-  const handle = createDb(config.DATABASE_URL, { max: 10, appName: 'vm-api' });
+  const handle = createDb(config.DATABASE_URL, { max: 10, appName: 'affilio-api' });
   if (config.MIGRATE_ON_START) {
     await runMigrations(handle.db);
     logger.info('đã chạy migration');

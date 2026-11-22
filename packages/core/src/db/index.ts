@@ -27,7 +27,7 @@ export interface CreateDbOptions {
   appName?: string;
 }
 
-export function createDb(url: string, { max = 10, appName = 'vm' }: CreateDbOptions = {}): DbHandle {
+export function createDb(url: string, { max = 10, appName = 'affilio' }: CreateDbOptions = {}): DbHandle {
   const client = postgres(url, {
     max,
     connection: { application_name: appName },

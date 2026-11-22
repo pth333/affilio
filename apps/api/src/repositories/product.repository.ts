@@ -1,5 +1,5 @@
-import { and, desc, eq, isNull, lt, newId, product } from '@vm/core';
-import type { Executor } from '@vm/core';
+import { and, desc, eq, isNull, lt, newId, product } from '@affilio/core';
+import type { Executor } from '@affilio/core';
 
 /**
  * Tầng repository của sản phẩm: chỉ truy vấn DB, không chứa nghiệp vụ và không biết HTTP.

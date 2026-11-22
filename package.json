@@ -9,16 +9,16 @@
   "scripts": {
     "db:up": "docker compose -f deploy/docker-compose.dev.yml up -d postgres",
     "db:down": "docker compose -f deploy/docker-compose.dev.yml down",
-    "db:generate": "pnpm --filter @vm/core db:generate",
-    "db:migrate": "pnpm --filter @vm/core db:migrate",
-    "dev:api": "pnpm --filter @vm/api dev",
-    "dev:worker": "pnpm --filter @vm/worker dev",
-    "dev:web": "pnpm --filter @vm/web dev",
-    "cli": "pnpm --silent --filter @vm/cli start",
+    "db:generate": "pnpm --filter @affilio/core db:generate",
+    "db:migrate": "pnpm --filter @affilio/core db:migrate",
+    "dev:api": "pnpm --filter @affilio/api dev",
+    "dev:worker": "pnpm --filter @affilio/worker dev",
+    "dev:web": "pnpm --filter @affilio/web dev",
+    "cli": "pnpm --silent --filter @affilio/cli start",
     "typecheck": "pnpm -r --parallel typecheck",
     "lint": "eslint .",
     "test": "vitest run",
-    "build": "pnpm --filter @vm/web build"
+    "build": "pnpm --filter @affilio/web build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

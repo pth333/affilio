@@ -1,0 +1,13 @@
+chore: đổi tên vm thành affilio trong toàn repo
+
+- scope package @vm/* -> @affilio/* (package.json, import, --filter, Dockerfile)
+- appName trong log: vm-api/cli/worker/migrate/test -> affilio-*, mặc định 'affilio'
+- DB dev + CI: user/password/db vm -> affilio (.env.example, compose, workflow)
+- tên project compose: vm-dev -> affilio-dev; đường dẫn deploy /opt/vm -> /opt/affilio
+- CLI bin: vm -> affilio
+- tiền tố thư mục tạm của test storage: affilio-storage-
+- pnpm-lock.yaml cập nhật theo tên package mới
+
+Lưu ý: volume Postgres dev cũ tạo với user vm nên cần tạo lại:
+  docker compose -f deploy/docker-compose.dev.yml down -v
+  pnpm db:up && pnpm db:migrate

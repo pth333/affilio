@@ -8,7 +8,7 @@ import { createLocalStorage, normalizeStorageKey, type Storage } from '#src/stor
 const created: string[] = [];
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'vm-storage-'));
+  const dir = await mkdtemp(join(tmpdir(), 'affilio-storage-'));
   created.push(dir);
   return dir;
 }

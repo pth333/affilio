@@ -28,7 +28,7 @@ describe.skipIf(!isTestDb)('hàng đợi Postgres (tích hợp)', () => {
 
   beforeAll(async () => {
     if (!TEST_URL) throw new Error('thiếu TEST_DATABASE_URL');
-    handle = createDb(TEST_URL, { max: 6, appName: 'vm-test' });
+    handle = createDb(TEST_URL, { max: 6, appName: 'affilio-test' });
     await runMigrations(handle.db);
     // Dọn job của các lần chạy trước để claim chỉ thấy job của test này.
     await handle.db.delete(jobs);

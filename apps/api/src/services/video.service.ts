@@ -1,4 +1,4 @@
-import { requestDraft, requestFinalRender, reviewVideo, type Db, type ReviewDecision } from '@vm/core';
+import { requestDraft, requestFinalRender, reviewVideo, type Db, type ReviewDecision } from '@affilio/core';
 import {
   findOwnedVersion,
   findVersionBundle,
@@ -16,7 +16,7 @@ import { badRequest, conflict, notFound, toPage, type Page } from '#src/shared.t
 
 /**
  * Tầng nghiệp vụ của video. Nhận tham số đã validate từ controller, phối hợp repository với
- * các quy tắc nghiệp vụ trong @vm/core (máy trạng thái, duyệt, hàng đợi), ném AppError khi
+ * các quy tắc nghiệp vụ trong @affilio/core (máy trạng thái, duyệt, hàng đợi), ném AppError khi
  * vi phạm quy tắc. Không biết gì về HTTP.
  */
 
@@ -49,7 +49,7 @@ export interface DraftCreated {
   jobId: string;
 }
 
-/** Tạo video mới cho sản phẩm và xếp job viết nháp (nghiệp vụ nằm ở @vm/core). */
+/** Tạo video mới cho sản phẩm và xếp job viết nháp (nghiệp vụ nằm ở @affilio/core). */
 export async function createDraftVideo(
   db: Db,
   params: { workspaceId: string; userId: string; productId: string },

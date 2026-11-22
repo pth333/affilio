@@ -1,4 +1,4 @@
-import { pingDb, type DbHandle } from '@vm/core';
+import { pingDb, type DbHandle } from '@affilio/core';
 
 /**
  * Tầng nghiệp vụ của healthcheck. Chỉ báo DB có trả lời hay không, không ném lỗi:

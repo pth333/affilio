@@ -1,5 +1,5 @@
 {
-  "name": "@vm/worker",
+  "name": "@affilio/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@vm/core": "workspace:*",
+    "@affilio/core": "workspace:*",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },

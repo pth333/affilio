@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import sensible from '@fastify/sensible';
-import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage } from '@vm/core';
+import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage } from '@affilio/core';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { healthRoutes } from '#src/routes/health.ts';
@@ -64,7 +64,7 @@ export async function buildApp(deps: AppDeps, logger: Logger): Promise<FastifyIn
         ...(err.issues ? { issues: err.issues } : {}),
       });
     }
-    // ZodError lọt ra ngoài validate() (vd. từ @vm/core) vẫn trả 400 kèm lỗi từng trường.
+    // ZodError lọt ra ngoài validate() (vd. từ @affilio/core) vẫn trả 400 kèm lỗi từng trường.
     if (err instanceof z.ZodError) {
       return reply.status(400).send({
         error: 'Bad Request',

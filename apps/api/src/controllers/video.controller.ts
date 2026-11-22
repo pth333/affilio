@@ -13,14 +13,14 @@ export const videoController = {
     const query = validate(videoListQuerySchema, req.query);
     const { db, session } = req.server.deps;
     const page = await listVideoPage(db, { workspaceId: session.workspaceId, ...query });
-    return reply.send(page);
+    return reply.status(200).send(page);
   },
 
   async detail(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const { id } = validate(idParamsSchema, req.params);
     const { db, session } = req.server.deps;
     const detail = await getVideoDetail(db, { workspaceId: session.workspaceId, videoId: id });
-    return reply.send(detail);
+    return reply.status(200).send(detail);
   },
 
   async create(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
@@ -36,7 +36,7 @@ export const videoController = {
     const body = validate(reviewVideoSchema, req.body);
     const { db, session } = req.server.deps;
     const video = await submitReview(db, { workspaceId: session.workspaceId, videoId: id, userId: session.userId, ...body });
-    return reply.send(video);
+    return reply.status(200).send(video);
   },
 
   async addNote(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

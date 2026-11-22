@@ -14,7 +14,7 @@ import {
   transitionVideo,
   video,
   videoCheck,
-} from '@vm/core';
+} from '@affilio/core';
 import type { JobHandler } from '#src/types.ts';
 import { videoPayloadSchema } from '#src/handlers/payload.ts';
 

@@ -5,7 +5,7 @@ import { createDb, ensureDefaultWorkspace, runMigrations } from '#src/db/index.t
 /** pnpm db:migrate — tạo bảng và seed workspace + user mặc định. */
 const config = loadConfig();
 const log = createLogger({ name: 'migrate', level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' });
-const handle = createDb(config.DATABASE_URL, { max: 1, appName: 'vm-migrate' });
+const handle = createDb(config.DATABASE_URL, { max: 1, appName: 'affilio-migrate' });
 
 try {
   await runMigrations(handle.db);

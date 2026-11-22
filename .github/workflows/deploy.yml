@@ -76,7 +76,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: deploy/docker-compose.yml,deploy/Caddyfile,deploy/scripts/backup.sh
-          target: /opt/vm
+          target: /opt/affilio
           strip_components: 1
       - name: Pull image và khởi động lại
         uses: appleboy/ssh-action@v1.2.0
@@ -92,7 +92,7 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            cd /opt/vm
+            cd /opt/affilio
             chmod +x scripts/backup.sh
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             # Sao lưu trước khi chạy migration mới (bỏ qua ở lần deploy đầu khi chưa có DB).

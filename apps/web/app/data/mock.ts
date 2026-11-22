@@ -8,7 +8,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/review', label: 'Hộp thư duyệt', icon: 'inbox', count: 12 },
   { to: '/templates', label: 'Định dạng & mẫu', icon: 'layers' },
   { to: '/publishing', label: 'Đăng tải & hiệu quả', icon: 'chart-no-axes-combined' },
-  { to: '/videos', label: 'Video (API thật)', icon: 'film' },
+  { to: '/videos', label: 'Video', icon: 'film' },
 ];
 
 export const CURRENT_USER = { name: 'Minh Anh', role: 'Chủ sở hữu', workspace: 'Minh Anh Studio' };

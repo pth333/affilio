@@ -1,5 +1,5 @@
-import { and, desc, eq, lt, newId, product, review, reviewNote, video, videoCheck, videoVersion } from '@vm/core';
-import type { Executor, VideoStatus, VideoSpec } from '@vm/core';
+import { and, desc, eq, lt, newId, product, review, reviewNote, video, videoCheck, videoVersion } from '@affilio/core';
+import type { Executor, VideoStatus, VideoSpec } from '@affilio/core';
 import type { Product } from '#src/repositories/product.repository.ts';
 
 /**

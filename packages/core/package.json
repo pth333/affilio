@@ -1,5 +1,5 @@
 {
-  "name": "@vm/core",
+  "name": "@affilio/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",

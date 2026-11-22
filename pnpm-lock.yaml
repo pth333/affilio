@@ -184,12 +184,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@affilio/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@fastify/sensible':
         specifier: ^6.0.8
         version: 6.0.8
-      '@vm/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       fastify:
         specifier: ^5.12.8
         version: 5.12.8
@@ -209,7 +209,7 @@ importers:
 
   apps/cli:
     dependencies:
-      '@vm/core':
+      '@affilio/core':
         specifier: workspace:*
         version: link:../../packages/core
       tsx:
@@ -253,7 +253,7 @@ importers:
 
   apps/worker:
     dependencies:
-      '@vm/core':
+      '@affilio/core':
         specifier: workspace:*
         version: link:../../packages/core
       tsx:
