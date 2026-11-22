@@ -1,5 +1,5 @@
 // Dữ liệu mẫu cho các màn hình chưa có API. Khi API sẵn sàng, thêm file vào api/ (mỗi tài nguyên một file) rồi gọi ở từng trang.
-import type { Channel, ContentTemplate, Draft, LibraryProduct, NavItem, PublishItem } from '~/types';
+import type { Channel, ContentTemplate, Draft, LibraryProduct, NavItem, PublishItem, VideoFormat } from '~/types';
 
 export const MAIN_NAV: NavItem[] = [
   { to: '/', label: 'Tổng quan', icon: 'layout-grid' },
@@ -8,10 +8,10 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/review', label: 'Hộp thư duyệt', icon: 'inbox', count: 12 },
   { to: '/templates', label: 'Định dạng & mẫu', icon: 'layers' },
   { to: '/publishing', label: 'Đăng tải & hiệu quả', icon: 'chart-no-axes-combined' },
-  { to: '/videos', label: 'Video (API thật)', icon: 'film' },
+  { to: '/videos', label: 'Video', icon: 'film' },
 ];
 
-export const CURRENT_USER = { name: 'Minh Anh', role: 'Chủ sở hữu', workspace: 'Minh Anh Studio' };
+export const CURRENT_USER = { name: 'Phan Hiếu', role: 'Chủ sở hữu', workspace: 'Phan Hiếu Studio' };
 
 export const AI_QUOTA = { used: 32, limit: 100 };
 
@@ -29,7 +29,7 @@ export const CHANNELS: Channel[] = [
     name: 'Góc Công Nghệ',
     handle: '@goccongnghe.daily',
     tag: 'Công nghệ',
-    color: '#7860e5',
+    color: '#c9382a',
     status: 'active',
     followers: 128_500,
     growth: 24.6,
@@ -45,7 +45,7 @@ export const CHANNELS: Channel[] = [
     name: 'Nhà Xinh Mỗi Ngày',
     handle: '@nhaxinhmoingay',
     tag: 'Nhà cửa',
-    color: '#3f9d63',
+    color: '#4f8a58',
     status: 'active',
     followers: 86_200,
     growth: 18.2,
@@ -61,7 +61,7 @@ export const CHANNELS: Channel[] = [
     name: 'Đẹp Có Gu',
     handle: '@depcogu',
     tag: 'Làm đẹp',
-    color: '#e88a3a',
+    color: '#cf7c2e',
     status: 'active',
     followers: 64_800,
     growth: 32.1,
@@ -77,7 +77,7 @@ export const CHANNELS: Channel[] = [
     name: 'Bếp Nhà Lười',
     handle: '@bepnhaluoi',
     tag: 'Gia dụng',
-    color: '#4b86d6',
+    color: '#3f6f9e',
     status: 'archived',
     followers: 12_400,
     growth: -3.2,
@@ -91,10 +91,10 @@ export const CHANNELS: Channel[] = [
 ];
 
 export const PRODUCTS: LibraryProduct[] = [
-  { id: 'p1', name: 'Quạt mini để bàn Jisulife', brand: 'Jisulife', category: 'Công nghệ', price: 289_000, affiliateUrl: 'https://s.shopee.vn/affilio-jisu', hasClip: true, color: '#7860e5' },
-  { id: 'p2', name: 'Tai nghe không dây Baseus', brand: 'Baseus', category: 'Công nghệ', price: 359_000, affiliateUrl: 'https://s.shopee.vn/affilio-baseus', hasClip: true, color: '#4b86d6' },
-  { id: 'p3', name: 'Đèn ngủ cảm ứng Miffy', brand: 'Miffy', category: 'Nhà cửa', price: 199_000, affiliateUrl: 'https://s.shopee.vn/affilio-miffy', hasClip: false, color: '#3f9d63' },
-  { id: 'p4', name: 'Serum The Ordinary Niacinamide', brand: 'The Ordinary', category: 'Làm đẹp', price: 235_000, affiliateUrl: 'https://s.shopee.vn/affilio-ordinary', hasClip: false, color: '#e88a3a' },
+  { id: 'p1', name: 'Quạt mini để bàn Jisulife', brand: 'Jisulife', category: 'Công nghệ', price: 289_000, affiliateUrl: 'https://s.shopee.vn/affilio-jisu', hasClip: true, color: '#c9382a' },
+  { id: 'p2', name: 'Tai nghe không dây Baseus', brand: 'Baseus', category: 'Công nghệ', price: 359_000, affiliateUrl: 'https://s.shopee.vn/affilio-baseus', hasClip: true, color: '#3f6f9e' },
+  { id: 'p3', name: 'Đèn ngủ cảm ứng Miffy', brand: 'Miffy', category: 'Nhà cửa', price: 199_000, affiliateUrl: 'https://s.shopee.vn/affilio-miffy', hasClip: false, color: '#4f8a58' },
+  { id: 'p4', name: 'Serum The Ordinary Niacinamide', brand: 'The Ordinary', category: 'Làm đẹp', price: 235_000, affiliateUrl: 'https://s.shopee.vn/affilio-ordinary', hasClip: false, color: '#cf7c2e' },
 ];
 
 const DEFAULT_CHECKS = [
@@ -114,7 +114,7 @@ export const DRAFTS: Draft[] = [
     price: 289_000,
     createdAt: '08:12',
     duration: 28,
-    color: '#7860e5',
+    color: '#c9382a',
     checks: DEFAULT_CHECKS,
     scenes: [
       { role: 'Mở đầu', start: 0, end: 3, text: 'Mùa hè này, đây là món đồ mình dùng nhiều nhất.' },
@@ -132,7 +132,7 @@ export const DRAFTS: Draft[] = [
     price: 359_000,
     createdAt: '07:48',
     duration: 32,
-    color: '#4b86d6',
+    color: '#3f6f9e',
     checks: DEFAULT_CHECKS,
     scenes: [
       { role: 'Mở đầu', start: 0, end: 4, text: 'Đừng mua tai nghe mới nếu bạn chưa biết 3 điều này.' },
@@ -150,7 +150,7 @@ export const DRAFTS: Draft[] = [
     price: 199_000,
     createdAt: '07:30',
     duration: 24,
-    color: '#3f9d63',
+    color: '#4f8a58',
     checks: [...DEFAULT_CHECKS.slice(0, 3), { label: 'Độ dài 15–45 giây', passed: true }],
     scenes: [
       { role: 'Mở đầu', start: 0, end: 3, text: 'Góc phòng ngủ đáng yêu hơn chỉ với 199K.' },
@@ -168,7 +168,7 @@ export const DRAFTS: Draft[] = [
     price: 235_000,
     createdAt: '06:55',
     duration: 30,
-    color: '#e88a3a',
+    color: '#cf7c2e',
     checks: [
       { label: 'Không cam kết sai sự thật', passed: false },
       ...DEFAULT_CHECKS.slice(1),
@@ -191,14 +191,28 @@ export const BEST_HOOK = {
 };
 
 export const TEMPLATES: ContentTemplate[] = [
-  { id: 't1', name: 'Cảnh báo trước khi mua', description: 'Mở bằng một lời cảnh báo để giữ chân người xem.', glyph: '!', cover: '#fdecec', structure: ['Cảnh báo', 'Lý do', 'Giải pháp', 'Kêu gọi'], completionRate: 74, clickRate: 18, system: true },
-  { id: 't2', name: 'Top 3 lý do', description: 'Liệt kê nhanh 3 điểm mạnh của sản phẩm.', glyph: '3', cover: '#efebfc', structure: ['Hook', 'Lý do 1', 'Lý do 2', 'Lý do 3', 'Kêu gọi'], completionRate: 68, clickRate: 15, system: true },
-  { id: 't3', name: 'So sánh A vs B', description: 'Đặt cạnh sản phẩm cùng phân khúc để nổi bật giá trị.', glyph: 'VS', cover: '#eaf2fc', structure: ['Đặt vấn đề', 'So sánh', 'Kết luận', 'Kêu gọi'], completionRate: 71, clickRate: 21, system: true },
-  { id: 't4', name: 'Hỏi đáp nhanh', description: 'Trả lời câu hỏi phổ biến của người mua.', glyph: '?', cover: '#e9f6ee', structure: ['Câu hỏi', 'Trả lời', 'Minh chứng', 'Kêu gọi'], completionRate: 65, clickRate: 12, system: true },
-  { id: 't5', name: 'Săn sale', description: 'Nhấn mạnh ưu đãi có thời hạn.', glyph: '%', cover: '#fdf3e3', structure: ['Giá gốc', 'Giá sale', 'Lý do nên mua', 'Kêu gọi'], completionRate: 62, clickRate: 24, system: true },
-  { id: 't6', name: 'Series theo chủ đề', description: 'Một tập trong chuỗi nội dung của kênh.', glyph: '#', cover: '#f3effb', structure: ['Giới thiệu tập', 'Sản phẩm', 'Đánh giá', 'Hẹn tập sau'], completionRate: 70, clickRate: 14, system: false },
-  { id: 't7', name: 'Trước & sau', description: 'Cho thấy thay đổi rõ ràng khi dùng sản phẩm.', glyph: '↗', cover: '#e8f5f4', structure: ['Trước', 'Quá trình', 'Sau', 'Kêu gọi'], completionRate: 77, clickRate: 19, system: false },
+  { id: 't1', name: 'Cảnh báo trước khi mua', description: 'Mở bằng một lời cảnh báo để giữ chân người xem.', glyph: '!', cover: '#f9e4dd', structure: ['Cảnh báo', 'Lý do', 'Giải pháp', 'Kêu gọi'], completionRate: 74, clickRate: 18, system: true },
+  { id: 't2', name: 'Top 3 lý do', description: 'Liệt kê nhanh 3 điểm mạnh của sản phẩm.', glyph: '3', cover: '#fdf1df', structure: ['Hook', 'Lý do 1', 'Lý do 2', 'Lý do 3', 'Kêu gọi'], completionRate: 68, clickRate: 15, system: true },
+  { id: 't3', name: 'So sánh A vs B', description: 'Đặt cạnh sản phẩm cùng phân khúc để nổi bật giá trị.', glyph: 'VS', cover: '#e9f0f6', structure: ['Đặt vấn đề', 'So sánh', 'Kết luận', 'Kêu gọi'], completionRate: 71, clickRate: 21, system: true },
+  { id: 't4', name: 'Hỏi đáp nhanh', description: 'Trả lời câu hỏi phổ biến của người mua.', glyph: '?', cover: '#eaf3ea', structure: ['Câu hỏi', 'Trả lời', 'Minh chứng', 'Kêu gọi'], completionRate: 65, clickRate: 12, system: true },
+  { id: 't5', name: 'Săn sale', description: 'Nhấn mạnh ưu đãi có thời hạn.', glyph: '%', cover: '#fbe9d7', structure: ['Giá gốc', 'Giá sale', 'Lý do nên mua', 'Kêu gọi'], completionRate: 62, clickRate: 24, system: true },
+  { id: 't6', name: 'Series theo chủ đề', description: 'Một tập trong chuỗi nội dung của kênh.', glyph: '#', cover: '#f4ece4', structure: ['Giới thiệu tập', 'Sản phẩm', 'Đánh giá', 'Hẹn tập sau'], completionRate: 70, clickRate: 14, system: false },
+  { id: 't7', name: 'Trước & sau', description: 'Cho thấy thay đổi rõ ràng khi dùng sản phẩm.', glyph: '↗', cover: '#eef2e9', structure: ['Trước', 'Quá trình', 'Sau', 'Kêu gọi'], completionRate: 77, clickRate: 19, system: false },
 ];
+
+/** Định dạng kịch bản chọn nhanh trong popup tạo video (bản rút gọn của màn Định dạng & mẫu). */
+export const VIDEO_FORMATS: VideoFormat[] = [
+  { id: 'auto', name: 'AI chọn', description: 'AI tự chọn hook phù hợp nhất', glyph: '✦' },
+  { id: 'top3', name: 'Top 3', description: 'Ba lý do nên mua', glyph: '3' },
+  { id: 'before-buy', name: 'Đừng mua trước khi', description: 'Cảnh báo trước khi xuống tiền', glyph: '!' },
+  { id: 'versus', name: 'A vs B', description: 'So sánh với lựa chọn khác', glyph: 'VS' },
+  { id: 'guess-price', name: 'Đoán giá', description: 'Thử thách người xem đoán giá', glyph: '?' },
+  { id: 'before-after', name: 'Trước & sau', description: 'Cho thấy thay đổi rõ rệt', glyph: '↗' },
+  { id: 'sale', name: 'Săn sale', description: 'Nhấn mạnh ưu đãi có hạn', glyph: '%' },
+];
+
+/** Danh mục sản phẩm dùng ở màn Sản phẩm và popup tạo sản phẩm. */
+export const PRODUCT_CATEGORIES = ['Công nghệ', 'Nhà cửa', 'Làm đẹp', 'Gia dụng', 'Thời trang', 'Mẹ & bé'];
 
 export const PUBLISH_QUEUE: PublishItem[] = [
   {
@@ -209,7 +223,7 @@ export const PUBLISH_QUEUE: PublishItem[] = [
     hashtags: ['#quatmini', '#jisulife', '#review', '#congnghe'],
     affiliateUrl: 'https://s.shopee.vn/affilio-jisu',
     approvedAt: '09:05',
-    color: '#7860e5',
+    color: '#c9382a',
   },
   {
     id: 'pub2',
@@ -219,7 +233,7 @@ export const PUBLISH_QUEUE: PublishItem[] = [
     hashtags: ['#tainghe', '#baseus', '#chongon'],
     affiliateUrl: 'https://s.shopee.vn/affilio-baseus',
     approvedAt: '08:40',
-    color: '#4b86d6',
+    color: '#3f6f9e',
   },
   {
     id: 'pub3',
@@ -229,7 +243,7 @@ export const PUBLISH_QUEUE: PublishItem[] = [
     hashtags: ['#denngu', '#miffy', '#decor'],
     affiliateUrl: 'https://s.shopee.vn/affilio-miffy',
     approvedAt: '08:10',
-    color: '#3f9d63',
+    color: '#4f8a58',
   },
 ];
 

@@ -13,6 +13,7 @@ export interface CreateProductBody {
   name: string;
   affiliateUrl: string;
   description?: string;
+  category?: string;
 }
 
 const PRODUCTS = '/products';

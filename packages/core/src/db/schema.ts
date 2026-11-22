@@ -35,7 +35,7 @@ export const workspace = pgTable('workspace', {
   createdAt: createdAt(),
 });
 
-export const appUser = pgTable('app_user', {
+export const appUser = pgTable('user', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'),

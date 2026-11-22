@@ -118,6 +118,53 @@ export function suggestProductsForChannel(channel: Channel, products: readonly L
     .sort((a, b) => b.score - a.score || a.product.price - b.product.price);
 }
 
+// ───────────── Tệp người dùng tải lên ─────────────
+
+/** 1536 → "1,5 KB"; 12_582_912 → "12 MB". */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 }).format(value)} ${units[unit] ?? 'B'}`;
+}
+
+/** Kiểm tra file là ảnh (dựa trên MIME). */
+export function isImageFile(file: File): boolean {
+  return file.type.startsWith('image/');
+}
+
+/** Kiểm tra file là video (dựa trên MIME). */
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/');
+}
+
+/** Đọc file thành data URL để xem trước; từ chối khi trình duyệt không đọc được. */
+export function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Không đọc được tệp')));
+    reader.onerror = () => reject(reader.error ?? new Error('Không đọc được tệp'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ───────────── Màu nhấn ─────────────
+
+/** Bảng màu nhấn ấm, lấy xoay vòng theo tên để sản phẩm/kênh mới luôn có màu ổn định. */
+const ACCENT_COLORS = ['#c9382a', '#4f8a58', '#cf7c2e', '#3f6f9e', '#a2476b', '#7c5aa6'] as const;
+
+/** "Quạt mini Jisulife" → một màu trong ACCENT_COLORS (cùng tên luôn ra cùng màu). */
+export function pickAccentColor(seed: string): string {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return ACCENT_COLORS[hash % ACCENT_COLORS.length] ?? ACCENT_COLORS[0];
+}
+
 // ───────────── Trình duyệt ─────────────
 
 /** Sao chép vào clipboard; trả về false nếu trình duyệt không cho phép. */

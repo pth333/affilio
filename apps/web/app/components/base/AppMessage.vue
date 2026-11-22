@@ -3,10 +3,10 @@
 const { items, closeMessage } = useMessageList();
 
 const STYLE: Record<MessageType, { icon: IconName; color: string }> = {
-  success: { icon: 'circle-check', color: 'text-[#b6d5b7]' },
-  error: { icon: 'circle-x', color: 'text-[#f2a7a4]' },
+  success: { icon: 'circle-check', color: 'text-[#b4d6b6]' },
+  error: { icon: 'circle-x', color: 'text-[#f4a596]' },
   warning: { icon: 'triangle-alert', color: 'text-[#f3cf8d]' },
-  info: { icon: 'info', color: 'text-[#b5c9f0]' },
+  info: { icon: 'info', color: 'text-[#aec7e6]' },
 };
 </script>
 
@@ -26,11 +26,11 @@ const STYLE: Record<MessageType, { icon: IconName; color: string }> = {
       <div
         v-for="m in items"
         :key="m.id"
-        class="pointer-events-auto flex max-w-full items-start gap-2.5 rounded-[10px] border border-[#65567a] bg-[#30283f] py-3.5 pr-3 pl-4 text-white shadow-[0_5px_25px_#25213240]"
+        class="pointer-events-auto flex max-w-full items-start gap-2.5 rounded-[10px] border border-[#5c3b30] bg-[#2c1f1a] py-3.5 pr-3 pl-4 text-white shadow-[0_5px_25px_#2c171260]"
       >
         <AppIcon :name="STYLE[m.type].icon" :size="19" :class="STYLE[m.type].color" class="mt-px" />
         <span class="min-w-0 flex-1 leading-snug">{{ m.text }}</span>
-        <button type="button" class="-my-0.5 rounded p-0.5 text-[#aaa0b7] hover:text-white" aria-label="Đóng thông báo" @click="closeMessage(m.id)">
+        <button type="button" class="-my-0.5 rounded p-0.5 text-[#b6a096] hover:text-white" aria-label="Đóng thông báo" @click="closeMessage(m.id)">
           <AppIcon name="x" :size="16" />
         </button>
       </div>

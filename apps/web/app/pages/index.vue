@@ -109,22 +109,22 @@ const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
     </div>
 
     <!-- Thẻ tối: hook nổi bật -->
-    <div class="relative overflow-hidden rounded-(--radius-card) border border-[#40374f] bg-[#2b2838] p-6 text-white">
-      <div class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[radial-gradient(circle,#3d354e,transparent_70%)]" />
-      <p class="eyebrow relative text-[#b9add0]">Hook nổi bật tuần này</p>
+    <div class="relative overflow-hidden rounded-(--radius-card) border border-[#46312a] bg-[#2b1f1a] p-6 text-white">
+      <div class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[radial-gradient(circle,#4a2a22,transparent_70%)]" />
+      <p class="eyebrow relative text-[#cbb0a4]">Hook nổi bật tuần này</p>
       <p class="relative mt-3 text-[1.3rem] leading-snug font-semibold">“{{ BEST_HOOK.text }}”</p>
-      <p class="relative mt-2 text-[0.9rem] text-[#b9add0]">{{ BEST_HOOK.channel }}</p>
+      <p class="relative mt-2 text-[0.9rem] text-[#cbb0a4]">{{ BEST_HOOK.channel }}</p>
       <dl class="relative mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">Lượt xem</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">Lượt xem</dt>
           <dd class="text-[1.15rem] font-bold">{{ formatCompact(BEST_HOOK.views) }}</dd>
         </div>
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">Xem hết</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">Xem hết</dt>
           <dd class="text-[1.15rem] font-bold">{{ formatPercent(BEST_HOOK.completion) }}</dd>
         </div>
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">So với TB kênh</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">So với TB kênh</dt>
           <dd class="text-[1.15rem] font-bold">{{ String(BEST_HOOK.multiplier).replace('.', ',') }}x</dd>
         </div>
       </dl>

@@ -3,53 +3,58 @@
 /* Dark mode bật bằng class `.dark` trên <html> (xem composables/useTheme.ts). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Bảng màu: nền kem ấm làm chủ đạo, đỏ gạch chỉ dùng cho điểm nhấn (khoảng 20% diện tích):
+ * nút hành động chính, mục đang chọn, liên kết, badge quan trọng.
+ */
+
 /* ───────────── Token màu (sáng) ───────────── */
 :root {
-  --bg: #f8f9fc;
-  --surface: #ffffff;
-  --surface-2: #fbfbfd;
-  --text: #292a36;
-  --muted: #888b9b;
-  --line: #eaeaf1;
-  --hover: #f5f5fa;
-  --primary: #7860e5;
-  --primary-strong: #7354cf;
-  --primary-soft: #efebfc;
-  --primary-chip: #ede9f8;
-  --primary-chip-fg: #8d76c7;
-  --ok: #3f9d63;
-  --ok-soft: #e9f6ee;
-  --warn: #d38a1f;
-  --warn-soft: #fdf3e3;
-  --bad: #d9534f;
-  --bad-soft: #fcecec;
-  --info: #4b86d6;
-  --info-soft: #eaf2fc;
+  --bg: #fbf5ed;
+  --surface: #fffdf9;
+  --surface-2: #fdf7f0;
+  --text: #2c211c;
+  --muted: #8d7b70;
+  --line: #f0e2d4;
+  --hover: #f8ede1;
+  --primary: #c9382a;
+  --primary-strong: #a82a1d;
+  --primary-soft: #fbe8e2;
+  --primary-chip: #f8dcd3;
+  --primary-chip-fg: #a12b1c;
+  --ok: #3f8a55;
+  --ok-soft: #e9f4ea;
+  --warn: #b4761a;
+  --warn-soft: #fbf1de;
+  --bad: #9b2416;
+  --bad-soft: #f8e3de;
+  --info: #3f6f9e;
+  --info-soft: #e9f1f8;
   color-scheme: light;
 }
 
 /* ───────────── Token màu (tối) ───────────── */
 .dark {
-  --bg: #17181e;
-  --surface: #202128;
-  --surface-2: #1c1d23;
-  --text: #ebebf4;
-  --muted: #9a9baa;
-  --line: #34353d;
-  --hover: #2a2b35;
-  --primary: #8b76ee;
-  --primary-strong: #a08ef3;
-  --primary-soft: #2e2a44;
-  --primary-chip: #322d47;
-  --primary-chip-fg: #b5a6ef;
-  --ok: #5fbf83;
-  --ok-soft: #1f3329;
-  --warn: #e8a643;
-  --warn-soft: #3a2f1d;
-  --bad: #ef7470;
-  --bad-soft: #3d2424;
-  --info: #6fa3ea;
-  --info-soft: #1f2c3d;
+  --bg: #17110f;
+  --surface: #211917;
+  --surface-2: #1c1513;
+  --text: #f4ebe2;
+  --muted: #a08e83;
+  --line: #382c26;
+  --hover: #2b221e;
+  --primary: #e2563d;
+  --primary-strong: #f47f67;
+  --primary-soft: #38221e;
+  --primary-chip: #432722;
+  --primary-chip-fg: #f5a695;
+  --ok: #62bd7f;
+  --ok-soft: #1d3123;
+  --warn: #e0a343;
+  --warn-soft: #382b17;
+  --bad: #f08a75;
+  --bad-soft: #3b211d;
+  --info: #6f9fd8;
+  --info-soft: #1c2836;
   color-scheme: dark;
 }
 
@@ -89,7 +94,12 @@
     }
   }
   body {
-    @apply bg-bg font-sans text-fg leading-normal antialiased;
+    @apply font-sans text-fg leading-normal antialiased;
+    background-color: var(--bg);
+    /* Quầng ấm rất nhẹ ở góc trên để nền kem không bị phẳng. */
+    background-image: radial-gradient(1100px 520px at 12% -12%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
   }
   button {
     cursor: pointer;
@@ -113,6 +123,22 @@
   .field {
     @apply h-10 rounded-lg border border-line bg-surface px-3 text-fg outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-3 focus:ring-primary/15;
   }
+  .form-label {
+    @apply mb-1.5 block text-[0.88rem] font-semibold text-fg;
+  }
+  .form-hint {
+    @apply mt-1.5 block text-[0.8rem] leading-snug text-muted;
+  }
+  .dropzone {
+    @apply rounded-xl border-2 border-dashed border-line bg-surface-2 px-4 py-5 text-center transition-colors;
+  }
+  .dropzone-active {
+    @apply border-primary bg-primary-soft/60;
+  }
+  /* Hộp thoại bật lên: trượt nhẹ + mờ dần khi mở. */
+  .modal-pop {
+    animation: modal-pop 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
   .btn {
     @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 font-medium whitespace-nowrap text-fg transition-colors hover:bg-hover disabled:opacity-50 disabled:hover:bg-surface;
   }
@@ -120,7 +146,7 @@
     @apply h-8 gap-1.5 px-3 text-[0.9rem];
   }
   .btn-primary {
-    @apply border-primary bg-primary text-white hover:border-primary-strong hover:bg-primary-strong disabled:hover:bg-primary;
+    @apply border-primary bg-primary text-white shadow-[0_6px_16px_-8px_var(--primary)] hover:border-primary-strong hover:bg-primary-strong disabled:hover:bg-primary;
   }
   .btn-ghost {
     @apply border-transparent bg-transparent hover:bg-hover;
@@ -154,5 +180,22 @@
   }
   .table-head {
     @apply text-left text-[0.78rem] font-semibold tracking-[0.05em] text-muted uppercase;
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-pop {
+    animation: none;
   }
 }

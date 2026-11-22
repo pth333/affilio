@@ -83,6 +83,14 @@ export interface Channel {
   trend: number[];
 }
 
+/** Clip người dùng kéo thả vào thư viện (URL tạm, chỉ sống trong phiên hiện tại). */
+export interface ProductClip {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+}
+
 export interface LibraryProduct {
   id: string;
   name: string;
@@ -92,6 +100,17 @@ export interface LibraryProduct {
   affiliateUrl: string;
   hasClip: boolean;
   color: string;
+  /** Ảnh sản phẩm (data URL khi người dùng tải lên). */
+  imageUrl?: string | null;
+  clips?: ProductClip[];
+}
+
+/** Định dạng kịch bản cho popup tạo video. */
+export interface VideoFormat {
+  id: string;
+  name: string;
+  description: string;
+  glyph: string;
 }
 
 export interface DraftScene {

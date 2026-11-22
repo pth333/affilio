@@ -1,5 +1,5 @@
 {
-  "id": "3cbfc45d-6a54-4bb6-96b3-e7cda582937d",
+  "id": "ac59d938-360c-46c3-a7d2-1374ab6906a2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -160,8 +160,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.app_user": {
-      "name": "app_user",
+    "public.user": {
+      "name": "user",
       "schema": "",
       "columns": {
         "id": {
@@ -194,8 +194,8 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "app_user_email_unique": {
-          "name": "app_user_email_unique",
+        "user_email_unique": {
+          "name": "user_email_unique",
           "nullsNotDistinct": false,
           "columns": [
             "email"
@@ -1187,10 +1187,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "membership_user_id_app_user_id_fk": {
-          "name": "membership_user_id_app_user_id_fk",
+        "membership_user_id_user_id_fk": {
+          "name": "membership_user_id_user_id_fk",
           "tableFrom": "membership",
-          "tableTo": "app_user",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
@@ -1823,10 +1823,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "review_user_id_app_user_id_fk": {
-          "name": "review_user_id_app_user_id_fk",
+        "review_user_id_user_id_fk": {
+          "name": "review_user_id_user_id_fk",
           "tableFrom": "review",
-          "tableTo": "app_user",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
@@ -1935,10 +1935,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "review_note_user_id_app_user_id_fk": {
-          "name": "review_note_user_id_app_user_id_fk",
+        "review_note_user_id_user_id_fk": {
+          "name": "review_note_user_id_user_id_fk",
           "tableFrom": "review_note",
-          "tableTo": "app_user",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
@@ -2311,10 +2311,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "video_created_by_app_user_id_fk": {
-          "name": "video_created_by_app_user_id_fk",
+        "video_created_by_user_id_fk": {
+          "name": "video_created_by_user_id_fk",
           "tableFrom": "video",
-          "tableTo": "app_user",
+          "tableTo": "user",
           "columnsFrom": [
             "created_by"
           ],
@@ -2520,10 +2520,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "video_version_author_user_id_app_user_id_fk": {
-          "name": "video_version_author_user_id_app_user_id_fk",
+        "video_version_author_user_id_user_id_fk": {
+          "name": "video_version_author_user_id_user_id_fk",
           "tableFrom": "video_version",
-          "tableTo": "app_user",
+          "tableTo": "user",
           "columnsFrom": [
             "author_user_id"
           ],

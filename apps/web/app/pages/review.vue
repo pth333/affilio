@@ -123,8 +123,8 @@ function formatTimecode(s: number): string {
 
       <div class="grid gap-6 md:grid-cols-[230px_1fr] xl:grid-cols-1 2xl:grid-cols-[230px_1fr]">
         <!-- Điện thoại 9:16 -->
-        <div class="relative mx-auto aspect-9/16 w-[230px] overflow-hidden rounded-[22px] border-[6px] border-[#1f1d27] bg-[#1f1d27] text-white">
-          <div class="absolute inset-0" :style="{ background: `linear-gradient(160deg, ${current.color}, #1f1d27 85%)` }" />
+        <div class="relative mx-auto aspect-9/16 w-[230px] overflow-hidden rounded-[22px] border-[6px] border-[#241a16] bg-[#241a16] text-white">
+          <div class="absolute inset-0" :style="{ background: `linear-gradient(160deg, ${current.color}, #241a16 85%)` }" />
           <div class="absolute inset-x-3 top-3 flex items-center justify-between text-[0.75rem] opacity-80">
             <span>{{ current.channelName }}</span>
             <AppIcon name="volume-2" :size="14" />
@@ -135,7 +135,7 @@ function formatTimecode(s: number): string {
           <p class="absolute inset-x-3 bottom-16 text-center text-[0.95rem] leading-snug font-semibold [text-shadow:0_1px_4px_#0008]">
             {{ current.hook }}
           </p>
-          <span class="absolute bottom-4 left-3 rounded-md bg-white px-2 py-1 text-[0.8rem] font-bold text-[#292a36]">{{ formatCurrency(current.price) }}</span>
+          <span class="absolute bottom-4 left-3 rounded-md bg-white px-2 py-1 text-[0.8rem] font-bold text-[#2c211c]">{{ formatCurrency(current.price) }}</span>
         </div>
 
         <!-- Kịch bản theo cảnh -->

@@ -76,7 +76,7 @@ watch(
 
       <!-- Thẻ gói -->
       <div
-        class="mt-5 rounded-[10px] border border-[#ebe6fa] bg-linear-to-b from-[#f6f3ff] to-[#f0effb] p-4 dark:border-line dark:from-primary-soft dark:to-surface"
+        class="mt-5 rounded-[10px] border border-[#f4dccd] bg-linear-to-b from-[#fdf1e6] to-[#fbe5d8] p-4 dark:border-line dark:from-primary-soft dark:to-surface"
       >
         <p class="font-semibold">Ý tưởng lớn. Bắt đầu nhỏ.</p>
         <p class="mt-1 text-[0.85rem] text-muted">Đã dùng {{ AI_QUOTA.used }}/{{ AI_QUOTA.limit }} lượt AI hôm nay.</p>
