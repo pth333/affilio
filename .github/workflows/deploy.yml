@@ -37,7 +37,7 @@ jobs:
           # Tên image GHCR phải viết thường.
           echo "IMAGE_APP=${IMAGE_APP,,}" >> "$GITHUB_ENV"
           echo "IMAGE_WEB=${IMAGE_WEB,,}" >> "$GITHUB_ENV"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
