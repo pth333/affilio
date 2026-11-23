@@ -5,8 +5,7 @@ import { newId } from '#src/db/id.ts';
 import { asset, product, video } from '#src/db/schema.ts';
 import { startDraftWorkflow, type TemporalClient } from '#src/temporal/index.ts';
 import { REAL_ONLY_ROLES, SCENE_ROLES, SPEC_SCHEMA_VERSION, validateSpec, type Scene, type ValidationResult, type VideoSpec } from '#src/spec/schema.ts';
-import { writeAudit, type Video } from '#src/video/index.ts';
-import { JOB_TYPES } from '#src/video/job-types.ts';
+import { markVideoFailed, writeAudit, type Video } from '#src/video/index.ts';
 
 export type DraftOutcome =
   | { ok: true; video: Video; workflowId: string }
@@ -46,25 +45,6 @@ export async function requestDraft(
     await markVideoFailed(db, created.id, 'drafting', `không start được workflow: ${message}`);
     throw new Error(`không start được workflow viết nháp cho video ${created.id}`, { cause: err });
   }
-}
-
-/**
- * Xếp job render bản cuối cho một phiên bản đã duyệt. Idempotent theo phiên bản nên duyệt
- * lại cùng bản không render hai lần. API và CLI dùng chung hàm này.
- */
-export async function requestFinalRender(
-  db: Db,
-  { workspaceId, videoId, versionId }: { workspaceId: string; videoId: string; versionId: string },
-): Promise<Job> {
-  const { job } = await enqueue(db, {
-    workspaceId,
-    queue: 'render',
-    type: JOB_TYPES.renderFinal,
-    payload: { videoId, versionId },
-    videoId,
-    idempotencyKey: `${JOB_TYPES.renderFinal}:${versionId}`,
-  });
-  return job;
 }
 
 // ───────────────────────── Kịch bản LLM → spec ─────────────────────────

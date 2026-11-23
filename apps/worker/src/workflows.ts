@@ -1,9 +1,9 @@
 /**
  * Workflow chạy trong sandbox của Temporal: phải deterministic, KHÔNG I/O trực tiếp.
- * Chỉ import giá trị từ '@temporalio/workflow' và '@vm/core/temporal/shared'; còn lại dùng `import type`.
+ * Chỉ import giá trị từ '@temporalio/workflow' và '@affilio/core/temporal/shared'; còn lại dùng `import type`.
  */
 import { ActivityFailure, CancellationScope, proxyActivities, sleep, type RetryPolicy } from '@temporalio/workflow';
-import { TASK_QUEUES, type VideoDraftInput, type VideoRenderFinalInput } from '@vm/core/temporal/shared';
+import { TASK_QUEUES, type VideoDraftInput, type VideoRenderFinalInput, type VideoReviseInput } from '@affilio/core/temporal/shared';
 import type { Activities } from '#src/activities.ts';
 
 /** Giữ nguyên chính sách cũ của hàng đợi Postgres: 30s·2^n, tối đa 30 phút, 3 lần thử. */
@@ -23,6 +23,11 @@ const local = proxyActivities<Activities>({ startToCloseTimeout: '30s', retry: {
 export type DraftWorkflowResult =
   | { outcome: 'skipped'; reason: string }
   | { outcome: 'rejected_auto'; versionId: string }
+  | { outcome: 'pending_review'; versionId: string }
+  | { outcome: 'preview_skipped'; versionId: string; reason: string };
+
+export type ReviseWorkflowResult =
+  | { outcome: 'skipped'; reason: string }
   | { outcome: 'pending_review'; versionId: string }
   | { outcome: 'preview_skipped'; versionId: string; reason: string };
 
@@ -71,6 +76,31 @@ export async function videoRenderFinalWorkflow(input: VideoRenderFinalInput): Pr
     return result.kind === 'done' ? { outcome: 'ready' } : { outcome: 'skipped', reason: result.reason };
   } catch (err) {
     await failVideo(input.videoId, 'rendering', err);
+    throw err;
+  }
+}
+
+/** AI sửa một cảnh → dựng preview cho phiên bản mới → quay lại hộp duyệt. */
+export async function videoReviseWorkflow(input: VideoReviseInput): Promise<ReviseWorkflowResult> {
+  let step = 'revising';
+  try {
+    for (;;) {
+      const revised = await llm.reviseScene(input);
+      if (revised.kind === 'deferred') {
+        // Hết hạn mức ngày: ngủ tới lúc reset rồi thử lại, không tính vào lượt thử.
+        await sleep(Math.max(0, Date.parse(revised.retryAt) - Date.now()));
+        continue;
+      }
+      if (revised.kind === 'skipped') return { outcome: 'skipped', reason: revised.reason };
+
+      step = 'previewing';
+      const preview = await render.renderPreview({ workspaceId: input.workspaceId, videoId: input.videoId, versionId: revised.versionId });
+      return preview.kind === 'done'
+        ? { outcome: 'pending_review', versionId: revised.versionId }
+        : { outcome: 'preview_skipped', versionId: revised.versionId, reason: preview.reason };
+    }
+  } catch (err) {
+    await failVideo(input.videoId, step, err);
     throw err;
   }
 }

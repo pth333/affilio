@@ -42,17 +42,17 @@ export const videoController = {
 
   async create(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const { productId } = validate(createVideoSchema, req.body);
-    const { db, session } = req.server.deps;
-    const created = await createDraftVideo(db, { workspaceId: session.workspaceId, userId: session.userId, productId });
-    req.log.info({ videoId: created.video.id, jobId: created.jobId }, 'đã xếp job viết nháp');
+    const { db, temporal, session } = req.server.deps;
+    const created = await createDraftVideo(db, temporal, { workspaceId: session.workspaceId, userId: session.userId, productId });
+    req.log.info({ videoId: created.video.id, workflowId: created.workflowId }, 'đã start workflow viết nháp');
     return reply.status(202).send(created);
   },
 
   async review(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const { id } = validate(idParamsSchema, req.params);
     const body = validate(reviewVideoSchema, req.body);
-    const { db, session } = req.server.deps;
-    const video = await submitReview(db, { workspaceId: session.workspaceId, videoId: id, userId: session.userId, ...body });
+    const { db, temporal, session } = req.server.deps;
+    const video = await submitReview(db, temporal, { workspaceId: session.workspaceId, videoId: id, userId: session.userId, ...body });
     return reply.status(200).send(video);
   },
 
@@ -80,19 +80,19 @@ export const videoController = {
     return reply.status(200).send(result);
   },
 
-  /** Nhờ AI viết lại một cảnh; worker xử lý rồi đưa video về hộp duyệt. */
+  /** Nhờ AI viết lại một cảnh; workflow trên worker xử lý rồi đưa video về hộp duyệt. */
   async reviseScene(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const { id, sceneId } = validate(sceneParamsSchema, req.params);
     const body = validate(reviseSceneSchema, req.body);
-    const { db, session } = req.server.deps;
-    const result = await requestVideoSceneRevision(db, {
+    const { db, temporal, session } = req.server.deps;
+    const result = await requestVideoSceneRevision(db, temporal, {
       workspaceId: session.workspaceId,
       userId: session.userId,
       videoId: id,
       sceneId,
       ...body,
     });
-    req.log.info({ videoId: id, sceneId, jobId: result.jobId }, 'đã xếp job AI sửa cảnh');
+    req.log.info({ videoId: id, sceneId, workflowId: result.workflowId }, 'đã start workflow AI sửa cảnh');
     return reply.status(202).send(result);
   },
 };

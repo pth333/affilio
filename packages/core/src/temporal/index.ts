@@ -2,10 +2,12 @@ import { Client, Connection, WorkflowExecutionAlreadyStartedError } from '@tempo
 import {
   draftWorkflowId,
   renderFinalWorkflowId,
+  reviseWorkflowId,
   TASK_QUEUES,
   WORKFLOW_TYPES,
   type VideoDraftInput,
   type VideoRenderFinalInput,
+  type VideoReviseInput,
 } from '#src/temporal/shared.ts';
 
 export * from '#src/temporal/shared.ts';
@@ -34,7 +36,7 @@ export interface StartedWorkflow {
  * - đang chạy → dùng lại (USE_EXISTING)
  * - đã xong thành công → không chạy lại; đã thất bại → cho chạy lại (ALLOW_DUPLICATE_FAILED_ONLY)
  */
-async function startOnce(client: Client, workflowType: string, workflowId: string, input: VideoDraftInput | VideoRenderFinalInput): Promise<StartedWorkflow> {
+async function startOnce(client: Client, workflowType: string, workflowId: string, input: VideoDraftInput | VideoRenderFinalInput | VideoReviseInput): Promise<StartedWorkflow> {
   try {
     const handle = await client.workflow.start(workflowType, {
       taskQueue: TASK_QUEUES.video,
@@ -56,4 +58,8 @@ export function startDraftWorkflow(client: Client, input: VideoDraftInput): Prom
 
 export function startRenderFinalWorkflow(client: Client, input: VideoRenderFinalInput): Promise<StartedWorkflow> {
   return startOnce(client, WORKFLOW_TYPES.renderFinal, renderFinalWorkflowId(input.versionId), input);
+}
+
+export function startReviseWorkflow(client: Client, input: VideoReviseInput): Promise<StartedWorkflow> {
+  return startOnce(client, WORKFLOW_TYPES.revise, reviseWorkflowId(input.versionId, input.sceneId), input);
 }

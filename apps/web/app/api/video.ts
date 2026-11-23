@@ -31,5 +31,5 @@ export const videoApi = {
     ),
   /** Nhờ AI viết lại một cảnh; video tạm rời hộp duyệt rồi tự quay lại khi worker xong. */
   reviseScene: (id: string, sceneId: string, body: { versionId: string; instruction?: string }, config?: AxiosRequestConfig) =>
-    http.post<{ jobId: string }>(`${buildVideoPath(id)}/scenes/${encodeURIComponent(sceneId)}/revise`, body, config),
+    http.post<{ workflowId: string }>(`${buildVideoPath(id)}/scenes/${encodeURIComponent(sceneId)}/revise`, body, config),
 };

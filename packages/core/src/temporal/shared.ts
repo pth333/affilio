@@ -5,15 +5,16 @@
 
 /** Task queue: workflow chạy ở `video`, activity tách theo loại tài nguyên để giới hạn đồng thời riêng. */
 export const TASK_QUEUES = {
-  video: 'vm-video',
-  llm: 'vm-llm',
-  render: 'vm-render',
+  video: 'affilio-video',
+  llm: 'affilio-llm',
+  render: 'affilio-render',
 } as const;
 
 /** Tên workflow type — phải trùng tên hàm export trong apps/worker/src/workflows.ts. */
 export const WORKFLOW_TYPES = {
   draft: 'videoDraftWorkflow',
   renderFinal: 'videoRenderFinalWorkflow',
+  revise: 'videoReviseWorkflow',
 } as const;
 
 export interface VideoDraftInput {
@@ -27,6 +28,15 @@ export interface VideoRenderFinalInput {
   versionId: string;
 }
 
+/** AI viết lại một cảnh của phiên bản đang chờ duyệt. */
+export interface VideoReviseInput {
+  workspaceId: string;
+  videoId: string;
+  versionId: string;
+  sceneId: string;
+  instruction: string | null;
+}
+
 /** Workflow ID cố định theo đối tượng ⇒ start trùng không chạy hai lần (thay idempotency_key của bảng jobs). */
 export function draftWorkflowId(videoId: string): string {
   return `video.draft:${videoId}`;
@@ -34,4 +44,8 @@ export function draftWorkflowId(videoId: string): string {
 
 export function renderFinalWorkflowId(versionId: string): string {
   return `video.render_final:${versionId}`;
+}
+
+export function reviseWorkflowId(versionId: string, sceneId: string): string {
+  return `video.revise:${versionId}:${sceneId}`;
 }

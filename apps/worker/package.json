@@ -12,6 +12,10 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@temporalio/activity": "^1.26.0",
+    "@temporalio/client": "^1.26.0",
+    "@temporalio/worker": "^1.26.0",
+    "@temporalio/workflow": "^1.26.0",
     "@affilio/core": "workspace:*",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"

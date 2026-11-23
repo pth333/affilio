@@ -1,7 +1,8 @@
 import { hostname } from 'node:os';
-import { createDb, createLogger, createProviders, createStorage, loadConfig, markVideoFailed, recoverExpiredJobs } from '@affilio/core';
-import { HANDLERS } from '#src/handlers/index.ts';
-import { runQueue } from '#src/runner.ts';
+import { fileURLToPath } from 'node:url';
+import { NativeConnection, Worker } from '@temporalio/worker';
+import { createDb, createLogger, createProviders, createStorage, loadConfig, TASK_QUEUES } from '@affilio/core';
+import { createActivities } from '#src/activities.ts';
 
 const config = loadConfig();
 const logger = createLogger({ name: 'worker', level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' });
@@ -17,7 +18,7 @@ async function main(): Promise<void> {
   });
   const providers = createProviders(config);
   const activities = createActivities({ db: handle.db, config, providers, storage: createStorage(config), logger });
-  const { draftVideo, renderPreview, renderFinal, markVideoFailed } = activities;
+  const { draftVideo, reviseScene, renderPreview, renderFinal, markVideoFailed } = activities;
 
   const connection = await NativeConnection.connect({ address: config.TEMPORAL_ADDRESS });
   const common = { connection, namespace: config.TEMPORAL_NAMESPACE, identity, shutdownGraceTime: SHUTDOWN_GRACE_MS };
@@ -32,7 +33,7 @@ async function main(): Promise<void> {
     Worker.create({
       ...common,
       taskQueue: TASK_QUEUES.llm,
-      activities: { draftVideo },
+      activities: { draftVideo, reviseScene },
       maxConcurrentActivityTaskExecutions: config.WORKER_LLM_CONCURRENCY,
     }),
     Worker.create({

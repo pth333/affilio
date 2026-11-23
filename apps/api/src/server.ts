@@ -1,4 +1,4 @@
-import { createDb, createLogger, createStorage, ensureDefaultWorkspace, loadConfig, runMigrations } from '@affilio/core';
+import { createDb, createLogger, createStorage, createTemporalClient, ensureDefaultWorkspace, loadConfig, runMigrations } from '@affilio/core';
 import { buildApp } from '#src/app.ts';
 
 const config = loadConfig();

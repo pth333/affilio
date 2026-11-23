@@ -1,4 +1,4 @@
-import type { AppConfig, Db, Job, JobQueue, Logger, ProviderSet, Storage } from '@affilio/core';
+import type { AppConfig, Db, Logger, ProviderSet, Storage } from '@affilio/core';
 
 export interface WorkerDeps {
   db: Db;
@@ -14,6 +14,12 @@ export type DraftResult =
   /** Hết hạn mức AI: workflow ngủ tới retryAt rồi thử lại, không tính lần thử. */
   | { kind: 'deferred'; retryAt: string }
   | { kind: 'drafted'; versionId: string; passed: boolean };
+
+/** Kết quả activity AI sửa cảnh — cùng cách xử lý hạn mức như viết nháp. */
+export type ReviseResult =
+  | { kind: 'skipped'; reason: string }
+  | { kind: 'deferred'; retryAt: string }
+  | { kind: 'revised'; versionId: string };
 
 export type RenderResult = { kind: 'done' } | { kind: 'skipped'; reason: string };
 

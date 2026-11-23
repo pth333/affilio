@@ -6,12 +6,10 @@ import {
   desc,
   ensureDefaultWorkspace,
   eq,
-  jobs,
   loadConfig,
   newId,
   product,
   requestDraft,
-  requestFinalRender,
   REVIEW_DECISIONS,
   reviewVideo,
   startRenderFinalWorkflow,
@@ -22,6 +20,8 @@ import {
   videoVersion,
   type Db,
   type DefaultContext,
+  type TemporalClient,
+  type TemporalHandle,
 } from '@affilio/core';
 import { z } from 'zod';
 
@@ -149,11 +149,7 @@ const COMMANDS: Record<string, Command> = {
     const result = await reviewVideo(db, { workspaceId: session.workspaceId, videoId, userId: session.userId, versionId: v.currentVersionId, decision });
     if (!result.ok) throw usageError(result.message);
     if (decision === 'approve') {
-<<<<<<< HEAD
       await startRenderFinalWorkflow(await temporal(), { workspaceId: session.workspaceId, videoId, versionId: v.currentVersionId });
-=======
-      await requestFinalRender(db, { workspaceId: session.workspaceId, videoId, versionId: v.currentVersionId });
->>>>>>> main
     }
     console.log(`Video ${videoId} → ${result.video.status}`);
   },
@@ -192,16 +188,12 @@ async function main(): Promise<number> {
   }
 
   const config = loadConfig();
-<<<<<<< HEAD
-  const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'vm-cli' });
+  const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'affilio-cli' });
   let temporalHandle: Promise<TemporalHandle> | undefined;
   const temporal = async (): Promise<TemporalClient> => {
     temporalHandle ??= createTemporalClient(config);
     return (await temporalHandle).client;
   };
-=======
-  const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'affilio-cli' });
->>>>>>> main
   try {
     const session = await ensureDefaultWorkspace(handle.db, { workspaceName: config.SEED_WORKSPACE_NAME, userEmail: config.SEED_USER_EMAIL });
     await command({ db: handle.db, session, temporal, positionals: rest, values });

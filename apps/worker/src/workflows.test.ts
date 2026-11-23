@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import { Worker } from '@temporalio/worker';
-import { TASK_QUEUES, WORKFLOW_TYPES } from '@vm/core/temporal/shared';
+import { TASK_QUEUES, WORKFLOW_TYPES } from '@affilio/core/temporal/shared';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Activities } from '#src/activities.ts';
-import type { DraftResult, MarkFailedInput, RenderResult } from '#src/types.ts';
+import type { DraftResult, MarkFailedInput, RenderResult, ReviseResult } from '#src/types.ts';
 
 const WORKFLOWS_PATH = fileURLToPath(new URL('./workflows.ts', import.meta.url));
 const INPUT = { workspaceId: 'ws_1', videoId: 'vid_1' };
@@ -21,6 +21,7 @@ afterAll(async () => {
 
 interface Mocks {
   draftVideo?: () => Promise<DraftResult>;
+  reviseScene?: () => Promise<ReviseResult>;
   renderPreview?: () => Promise<RenderResult>;
   renderFinal?: () => Promise<RenderResult>;
 }
@@ -29,10 +30,11 @@ interface Mocks {
 function fakeActivities(mocks: Mocks) {
   const markVideoFailed = vi.fn<(input: MarkFailedInput) => Promise<void>>(async () => undefined);
   const draftVideo = vi.fn(mocks.draftVideo ?? (async (): Promise<DraftResult> => ({ kind: 'drafted', versionId: 'ver_1', passed: true })));
+  const reviseScene = vi.fn(mocks.reviseScene ?? (async (): Promise<ReviseResult> => ({ kind: 'revised', versionId: 'ver_r1' })));
   const renderPreview = vi.fn(mocks.renderPreview ?? (async (): Promise<RenderResult> => ({ kind: 'done' })));
   const renderFinal = vi.fn(mocks.renderFinal ?? (async (): Promise<RenderResult> => ({ kind: 'done' })));
-  const activities: Activities = { draftVideo, renderPreview, renderFinal, markVideoFailed };
-  return { activities, draftVideo, renderPreview, renderFinal, markVideoFailed };
+  const activities: Activities = { draftVideo, reviseScene, renderPreview, renderFinal, markVideoFailed };
+  return { activities, draftVideo, reviseScene, renderPreview, renderFinal, markVideoFailed };
 }
 
 /** Chạy 3 worker (video/llm/render) như main.ts rồi thực thi workflow. */
@@ -118,5 +120,47 @@ describe('videoRenderFinalWorkflow', () => {
     });
     await expect(runWorkflow(WORKFLOW_TYPES.renderFinal, [input], m.activities)).rejects.toThrow();
     expect(m.markVideoFailed).toHaveBeenCalledWith({ videoId: 'vid_1', step: 'rendering', reason: 'hết dung lượng' });
+  }, 60_000);
+});
+
+describe('videoReviseWorkflow', () => {
+  const input = { ...INPUT, versionId: 'ver_1', sceneId: 'sc_1', instruction: null };
+
+  it('AI sửa cảnh → dựng preview bản mới → chờ duyệt', async () => {
+    const m = fakeActivities({});
+    const result = await runWorkflow(WORKFLOW_TYPES.revise, [input], m.activities);
+    expect(result).toEqual({ outcome: 'pending_review', versionId: 'ver_r1' });
+    expect(m.renderPreview).toHaveBeenCalledWith({ ...INPUT, versionId: 'ver_r1' });
+  }, 60_000);
+
+  it('hết hạn mức → ngủ tới retryAt rồi sửa lại', async () => {
+    let calls = 0;
+    const m = fakeActivities({
+      reviseScene: async () => {
+        calls += 1;
+        if (calls === 1) return { kind: 'deferred', retryAt: new Date(Date.now() + 6 * 3600_000).toISOString() };
+        return { kind: 'revised', versionId: 'ver_r2' };
+      },
+    });
+    const result = await runWorkflow(WORKFLOW_TYPES.revise, [input], m.activities);
+    expect(result).toEqual({ outcome: 'pending_review', versionId: 'ver_r2' });
+    expect(m.reviseScene).toHaveBeenCalledTimes(2);
+  }, 60_000);
+
+  it('bản đã đổi → skipped, không dựng preview', async () => {
+    const m = fakeActivities({ reviseScene: async () => ({ kind: 'skipped', reason: 'bản đã đổi' }) });
+    const result = await runWorkflow(WORKFLOW_TYPES.revise, [input], m.activities);
+    expect(result).toEqual({ outcome: 'skipped', reason: 'bản đã đổi' });
+    expect(m.renderPreview).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('AI lỗi hết lượt thử → đánh dấu failed ở bước revising', async () => {
+    const m = fakeActivities({
+      reviseScene: async () => {
+        throw new Error('AI trả JSON hỏng');
+      },
+    });
+    await expect(runWorkflow(WORKFLOW_TYPES.revise, [input], m.activities)).rejects.toThrow();
+    expect(m.markVideoFailed).toHaveBeenCalledWith({ videoId: 'vid_1', step: 'revising', reason: 'AI trả JSON hỏng' });
   }, 60_000);
 });

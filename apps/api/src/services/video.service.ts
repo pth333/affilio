@@ -1,12 +1,13 @@
 import {
   editScene,
   requestDraft,
-  requestFinalRender,
   requestSceneRevision,
   reviewVideo,
+  startRenderFinalWorkflow,
   type Db,
   type ReviewDecision,
   type SceneWriteFailure,
+  type TemporalClient,
 } from '@affilio/core';
 import {
   findOwnedVersion,
@@ -25,7 +26,7 @@ import { badRequest, conflict, notFound, toPage, type Page } from '#src/shared.t
 
 /**
  * Tầng nghiệp vụ của video. Nhận tham số đã validate từ controller, phối hợp repository với
- * các quy tắc nghiệp vụ trong @affilio/core (máy trạng thái, duyệt, hàng đợi), ném AppError khi
+ * các quy tắc nghiệp vụ trong @affilio/core (máy trạng thái, duyệt, workflow Temporal), ném AppError khi
  * vi phạm quy tắc. Không biết gì về HTTP.
  */
 
@@ -55,17 +56,18 @@ export async function getVideoDetail(
 
 export interface DraftCreated {
   video: Video;
-  jobId: string;
+  workflowId: string;
 }
 
-/** Tạo video mới cho sản phẩm và xếp job viết nháp (nghiệp vụ nằm ở @affilio/core). */
+/** Tạo video mới cho sản phẩm và start workflow viết nháp (nghiệp vụ nằm ở @affilio/core). */
 export async function createDraftVideo(
   db: Db,
+  temporal: TemporalClient,
   params: { workspaceId: string; userId: string; productId: string },
 ): Promise<DraftCreated> {
-  const result = await requestDraft(db, params);
+  const result = await requestDraft(db, temporal, params);
   if (!result.ok) throw notFound(result.message);
-  return { video: result.video, jobId: result.job.id };
+  return { video: result.video, workflowId: result.workflowId };
 }
 
 /** Đổi lỗi ghi cảnh của core thành HTTP: không thấy → 404, dữ liệu sai → 400, còn lại 409. */
@@ -101,10 +103,14 @@ export interface ReviseVideoSceneParams {
 }
 
 /** Nhờ AI viết lại một cảnh; worker sẽ đưa video quay lại hộp duyệt. */
-export async function requestVideoSceneRevision(db: Db, params: ReviseVideoSceneParams): Promise<{ jobId: string }> {
-  const result = await requestSceneRevision(db, params);
+export async function requestVideoSceneRevision(
+  db: Db,
+  temporal: TemporalClient,
+  params: ReviseVideoSceneParams,
+): Promise<{ workflowId: string }> {
+  const result = await requestSceneRevision(db, temporal, params);
   if (!result.ok) throw sceneWriteError(result.reason, result.message);
-  return { jobId: result.jobId };
+  return { workflowId: result.workflowId };
 }
 
 export interface SubmitReviewParams {
@@ -115,15 +121,15 @@ export interface SubmitReviewParams {
   decision: ReviewDecision;
 }
 
-/** Duyệt video; duyệt xong thì xếp job render bản cuối (idempotent theo phiên bản). */
-export async function submitReview(db: Db, params: SubmitReviewParams): Promise<Video> {
+/** Duyệt video; duyệt xong thì start workflow render bản cuối (idempotent theo phiên bản). */
+export async function submitReview(db: Db, temporal: TemporalClient, params: SubmitReviewParams): Promise<Video> {
   const result = await reviewVideo(db, params);
   if (!result.ok) {
     // Chưa có video → 404; sai trạng thái hoặc phiên bản cũ → 409 (client tải lại rồi thử lại).
     throw result.reason === 'not_found' ? notFound(result.message) : conflict(result.message);
   }
   if (params.decision === 'approve') {
-    await requestFinalRender(db, { workspaceId: params.workspaceId, videoId: params.videoId, versionId: params.versionId });
+    await startRenderFinalWorkflow(temporal, { workspaceId: params.workspaceId, videoId: params.videoId, versionId: params.versionId });
   }
   return result.video;
 }

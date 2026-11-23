@@ -10,11 +10,10 @@ import {
   type VersionSource,
   type VideoStatus,
 } from '#src/db/schema.ts';
-import { enqueue } from '#src/queue/index.ts';
 import { specHash } from '#src/spec/hash.ts';
 import { applyScenePatch } from '#src/spec/patch.ts';
 import type { Scene, VideoSpec } from '#src/spec/schema.ts';
-import { JOB_TYPES } from '#src/video/job-types.ts';
+import { startReviseWorkflow, type TemporalClient } from '#src/temporal/index.ts';
 
 export type Video = typeof video.$inferSelect;
 export type VideoVersion = typeof videoVersion.$inferSelect;
@@ -291,12 +290,16 @@ export interface ReviseSceneInput extends SceneGateInput {
 }
 
 export type SceneReviseResult =
-  | { ok: true; jobId: string }
+  | { ok: true; workflowId: string }
   | { ok: false; reason: SceneWriteFailure; message: string };
 
-/** Nhờ AI sửa một cảnh: chuyển sang needs_changes và xếp job llm. */
-export async function requestSceneRevision(db: Db, input: ReviseSceneInput): Promise<SceneReviseResult> {
-  return db.transaction(async (tx) => {
+/**
+ * Nhờ AI sửa một cảnh: chuyển sang needs_changes rồi start workflow sửa cảnh trên Temporal.
+ * Start sau khi commit (worker phải thấy trạng thái mới); start lỗi thì trả video về hộp duyệt
+ * để không treo ở `needs_changes` và người dùng thử lại được.
+ */
+export async function requestSceneRevision(db: Db, temporal: TemporalClient, input: ReviseSceneInput): Promise<SceneReviseResult> {
+  const gated = await db.transaction(async (tx): Promise<{ ok: true } | { ok: false; reason: SceneWriteFailure; message: string }> => {
     const found = await findReviewableScene(tx, input);
     if (!found.ok) return found;
     const { gate } = found;
@@ -307,30 +310,31 @@ export async function requestSceneRevision(db: Db, input: ReviseSceneInput): Pro
     const moved = await transitionVideo(tx, { videoId: gate.video.id, from: ['pending_review'], to: 'needs_changes' });
     if (!moved) return { ok: false, reason: 'not_reviewable', message: 'trạng thái video vừa thay đổi, tải lại để xem' };
 
-    const { job } = await enqueue(tx, {
-      workspaceId: input.workspaceId,
-      queue: 'llm',
-      type: JOB_TYPES.revise,
-      payload: {
-        videoId: input.videoId,
-        versionId: input.versionId,
-        sceneId: input.sceneId,
-        instruction: input.instruction ?? null,
-      },
-      videoId: input.videoId,
-      idempotencyKey: `${JOB_TYPES.revise}:${input.versionId}:${input.sceneId}`,
-    });
     await writeAudit(tx, {
       workspaceId: input.workspaceId,
       userId: input.userId,
       action: 'video.scene_revise',
       targetType: 'video',
       targetId: gate.video.id,
-      data: { versionId: input.versionId, sceneId: input.sceneId, jobId: job.id },
+      data: { versionId: input.versionId, sceneId: input.sceneId },
     });
-    return { ok: true, jobId: job.id };
+    return { ok: true };
   });
+  if (!gated.ok) return gated;
+
+  try {
+    const { workflowId } = await startReviseWorkflow(temporal, {
+      workspaceId: input.workspaceId,
+      videoId: input.videoId,
+      versionId: input.versionId,
+      sceneId: input.sceneId,
+      instruction: input.instruction ?? null,
+    });
+    return { ok: true, workflowId };
+  } catch (err) {
+    await transitionVideo(db, { videoId: input.videoId, from: ['needs_changes'], to: 'pending_review' });
+    throw new Error(`không start được workflow sửa cảnh cho video ${input.videoId}`, { cause: err });
+  }
 }
 
-export * from '#src/video/job-types.ts';
 export * from '#src/video/draft.ts';

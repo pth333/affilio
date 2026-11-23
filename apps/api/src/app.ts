@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import sensible from '@fastify/sensible';
-import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage } from '@affilio/core';
+import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage, TemporalClient } from '@affilio/core';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { healthRoutes } from '#src/routes/health.ts';
