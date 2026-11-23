@@ -32,7 +32,7 @@ const envSchema = z.object({
   STORAGE_DIR: z.string().default('./storage'),
 
   SEED_WORKSPACE_NAME: z.string().default('My Channel'),
-  SEED_USER_EMAIL: z.string().email().default('owner@example.com'),
+  SEED_USER_EMAIL: z.string().email().default('admin@gmail.com'),
 
   CF_ACCOUNT_ID: optionalString,
   CF_API_TOKEN: optionalString,

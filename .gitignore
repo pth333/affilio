@@ -1,8 +1,10 @@
 node_modules/
+.pnpm-store/
 .env
 .env.*
-!.env.example
-storage/
+!\.env.example
+# Thư mục dữ liệu ở gốc repo (ảnh/video render). Chỉ ở gốc, không khớp packages/core/src/storage.
+/storage/
 backups/
 .nuxt/
 .output/

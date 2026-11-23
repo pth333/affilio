@@ -1,8 +1,7 @@
 import { hostname } from 'node:os';
-import { fileURLToPath } from 'node:url';
-import { NativeConnection, Worker } from '@temporalio/worker';
-import { createDb, createLogger, createProviders, createStorage, loadConfig, TASK_QUEUES } from '@vm/core';
-import { createActivities } from '#src/activities.ts';
+import { createDb, createLogger, createProviders, createStorage, loadConfig, markVideoFailed, recoverExpiredJobs } from '@affilio/core';
+import { HANDLERS } from '#src/handlers/index.ts';
+import { runQueue } from '#src/runner.ts';
 
 const config = loadConfig();
 const logger = createLogger({ name: 'worker', level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' });
@@ -14,7 +13,7 @@ async function main(): Promise<void> {
   const identity = config.WORKER_ID ?? `${hostname()}-${process.pid}`;
   const handle = createDb(config.DATABASE_URL, {
     max: config.WORKER_LLM_CONCURRENCY + config.WORKER_RENDER_CONCURRENCY + 2,
-    appName: 'vm-worker',
+    appName: 'affilio-worker',
   });
   const providers = createProviders(config);
   const activities = createActivities({ db: handle.db, config, providers, storage: createStorage(config), logger });

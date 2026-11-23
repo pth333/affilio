@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { AI_QUOTA, BEST_HOOK, CHANNELS, CURRENT_USER, DASHBOARD_STATS, DRAFTS } from '~/data/mock';
+import { storeToRefs } from 'pinia';
+import { AI_QUOTA, BEST_HOOK, CHANNELS, CURRENT_USER, DASHBOARD_STATS } from '~/data/mock';
+import { useReviewStore } from '~/stores/review';
 
 definePageMeta({ title: 'Tổng quan' });
 
 const now = new Date();
 const period = ref('7');
 const activeChannels = CHANNELS.filter((c) => c.status === 'active');
-const topDrafts = DRAFTS.slice(0, 3);
 const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
+
+// Số video chờ duyệt lấy từ store dùng chung để khớp với màn /review.
+const reviewStore = useReviewStore();
+const { pendingVideos, pendingCount } = storeToRefs(reviewStore);
+onMounted(() => {
+  void reviewStore.refreshInbox();
+});
 </script>
 
 <template>
@@ -16,7 +24,7 @@ const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
       <AppIcon name="sun" :size="26" class="text-warn" />
     </template>
     <template #actions>
-      <NuxtLink to="/review" class="btn btn-primary"><AppIcon name="plus" :size="17" /> Tạo lô video mới</NuxtLink>
+      <NuxtLink to="/videos" class="btn btn-primary"><AppIcon name="plus" :size="17" /> Tạo video mới</NuxtLink>
     </template>
   </PageHeader>
 
@@ -25,14 +33,14 @@ const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
     <span class="grid size-11 place-items-center rounded-xl bg-primary text-white"><AppIcon name="sparkles" :size="22" /></span>
     <div class="min-w-0 flex-1">
       <p class="font-semibold">AI đã làm việc trong lúc bạn nghỉ ngơi.</p>
-      <p class="text-muted">{{ DASHBOARD_STATS.pending }} video mới đang chờ bạn duyệt — mất khoảng 5 phút để xem hết.</p>
+      <p class="text-muted">{{ pendingCount }} video mới đang chờ bạn duyệt — mất khoảng 5 phút để xem hết.</p>
     </div>
     <NuxtLink to="/review" class="btn">Vào hộp thư duyệt <AppIcon name="arrow-right" :size="16" /></NuxtLink>
   </section>
 
   <!-- Chỉ số -->
   <section class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    <StatCard label="Chờ duyệt" :value="DASHBOARD_STATS.pending" hint="Cần bạn xem" icon="inbox" />
+    <StatCard label="Chờ duyệt" :value="pendingCount" hint="Cần bạn xem" icon="inbox" />
     <StatCard label="Sẵn sàng đăng" :value="DASHBOARD_STATS.ready" hint="Đã duyệt" icon="circle-check" />
     <StatCard label="Video đã đăng tuần này" :value="DASHBOARD_STATS.publishedThisWeek" :trend="DASHBOARD_STATS.weeklyGrowth">
       <BarSparkline :values="DASHBOARD_STATS.weeklyBars" :height="36" />
@@ -95,36 +103,43 @@ const quotaLeft = AI_QUOTA.limit - AI_QUOTA.used;
         <h2 class="text-[1.1rem] font-bold">Đang chờ bạn duyệt</h2>
         <NuxtLink to="/review" class="text-[0.9rem] font-medium text-primary hover:underline">Xem tất cả</NuxtLink>
       </div>
-      <ul>
-        <li v-for="d in topDrafts" :key="d.id" class="flex items-center gap-3 border-b border-line px-5 py-3.5 last:border-b-0 hover:bg-hover">
-          <ProductThumb :name="d.productName" :color="d.color" :size="42" />
+      <ul v-if="pendingVideos.length">
+        <li
+          v-for="v in pendingVideos.slice(0, 3)"
+          :key="v.id"
+          class="flex items-center gap-3 border-b border-line px-5 py-3.5 last:border-b-0 hover:bg-hover"
+        >
+          <ProductThumb :name="v.productName" :color="pickAccentColor(v.productName)" :size="42" />
           <div class="min-w-0 flex-1">
-            <p class="truncate font-medium">{{ d.productName }}</p>
-            <p class="truncate text-[0.85rem] text-muted">{{ d.channelName }} · {{ d.duration }} giây · tạo lúc {{ d.createdAt }}</p>
+            <p class="truncate font-medium">{{ v.productName }}</p>
+            <p class="truncate text-[0.85rem] text-muted">Cập nhật {{ formatDateTime(v.updatedAt) }}</p>
           </div>
-          <ScoreBadge :score="d.score" />
-          <NuxtLink :to="{ path: '/review', query: { id: d.id } }" class="btn btn-sm">Duyệt <AppIcon name="chevron-right" :size="15" /></NuxtLink>
+          <StatusBadge :status="v.status" />
+          <NuxtLink :to="{ path: '/review', query: { video: v.id } }" class="btn btn-sm">
+            Duyệt <AppIcon name="chevron-right" :size="15" />
+          </NuxtLink>
         </li>
       </ul>
+      <p v-else class="px-5 py-8 text-center text-muted">Không có video nào đang chờ duyệt.</p>
     </div>
 
     <!-- Thẻ tối: hook nổi bật -->
-    <div class="relative overflow-hidden rounded-(--radius-card) border border-[#40374f] bg-[#2b2838] p-6 text-white">
-      <div class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[radial-gradient(circle,#3d354e,transparent_70%)]" />
-      <p class="eyebrow relative text-[#b9add0]">Hook nổi bật tuần này</p>
+    <div class="relative overflow-hidden rounded-(--radius-card) border border-[#46312a] bg-[#2b1f1a] p-6 text-white">
+      <div class="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-[radial-gradient(circle,#4a2a22,transparent_70%)]" />
+      <p class="eyebrow relative text-[#cbb0a4]">Hook nổi bật tuần này</p>
       <p class="relative mt-3 text-[1.3rem] leading-snug font-semibold">“{{ BEST_HOOK.text }}”</p>
-      <p class="relative mt-2 text-[0.9rem] text-[#b9add0]">{{ BEST_HOOK.channel }}</p>
+      <p class="relative mt-2 text-[0.9rem] text-[#cbb0a4]">{{ BEST_HOOK.channel }}</p>
       <dl class="relative mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">Lượt xem</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">Lượt xem</dt>
           <dd class="text-[1.15rem] font-bold">{{ formatCompact(BEST_HOOK.views) }}</dd>
         </div>
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">Xem hết</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">Xem hết</dt>
           <dd class="text-[1.15rem] font-bold">{{ formatPercent(BEST_HOOK.completion) }}</dd>
         </div>
         <div>
-          <dt class="text-[0.8rem] text-[#b9add0]">So với TB kênh</dt>
+          <dt class="text-[0.8rem] text-[#cbb0a4]">So với TB kênh</dt>
           <dd class="text-[1.15rem] font-bold">{{ String(BEST_HOOK.multiplier).replace('.', ',') }}x</dd>
         </div>
       </dl>

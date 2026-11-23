@@ -10,8 +10,11 @@ import {
   type VersionSource,
   type VideoStatus,
 } from '#src/db/schema.ts';
+import { enqueue } from '#src/queue/index.ts';
 import { specHash } from '#src/spec/hash.ts';
-import type { VideoSpec } from '#src/spec/schema.ts';
+import { applyScenePatch } from '#src/spec/patch.ts';
+import type { Scene, VideoSpec } from '#src/spec/schema.ts';
+import { JOB_TYPES } from '#src/video/job-types.ts';
 
 export type Video = typeof video.$inferSelect;
 export type VideoVersion = typeof videoVersion.$inferSelect;
@@ -196,4 +199,138 @@ export async function reviewVideo(db: Db, input: ReviewInput): Promise<ReviewOut
   });
 }
 
+// ───────────────────────── Sửa cảnh trong hộp duyệt ─────────────────────────
+
+/** Lý do không ghi được cảnh — tầng service API đổi thành mã HTTP tương ứng. */
+export type SceneWriteFailure = 'not_found' | 'not_reviewable' | 'stale_version' | 'scene_not_found' | 'locked' | 'invalid';
+
+export interface SceneGateInput {
+  workspaceId: string;
+  videoId: string;
+  versionId: string;
+  sceneId: string;
+}
+
+interface SceneGate {
+  video: Video;
+  version: VideoVersion;
+  scene: Scene;
+}
+
+type SceneGateResult = { ok: true; gate: SceneGate } | { ok: false; reason: SceneWriteFailure; message: string };
+
+/** Khóa dòng video rồi kiểm tra: đúng workspace, đang chờ duyệt, đúng phiên bản đang xem, có cảnh. */
+async function findReviewableScene(tx: Tx, input: SceneGateInput): Promise<SceneGateResult> {
+  const [v] = await tx
+    .select()
+    .from(video)
+    .where(and(eq(video.id, input.videoId), eq(video.workspaceId, input.workspaceId)))
+    .for('update');
+  if (!v) return { ok: false, reason: 'not_found', message: 'không tìm thấy video' };
+  if (v.status !== 'pending_review') {
+    return { ok: false, reason: 'not_reviewable', message: `video đang ở trạng thái ${v.status}, chỉ sửa được khi chờ duyệt` };
+  }
+  if (v.currentVersionId !== input.versionId) {
+    return { ok: false, reason: 'stale_version', message: 'video đã có phiên bản mới hơn, tải lại để xem' };
+  }
+  const [version] = await tx.select().from(videoVersion).where(eq(videoVersion.id, input.versionId));
+  if (!version) return { ok: false, reason: 'not_found', message: 'không tìm thấy phiên bản video' };
+  const scene = version.spec.scenes.find((item) => item.id === input.sceneId);
+  if (!scene) return { ok: false, reason: 'scene_not_found', message: `không có cảnh ${input.sceneId}` };
+  return { ok: true, gate: { video: v, version, scene } };
+}
+
+export interface EditSceneInput extends SceneGateInput {
+  userId: string;
+  narration: string;
+}
+
+export type SceneEditResult =
+  | { ok: true; versionId: string; versionNo: number }
+  | { ok: false; reason: SceneWriteFailure; message: string };
+
+/** Người dùng sửa lời thoại một cảnh: tạo phiên bản mới và giữ video trong hộp duyệt. */
+export async function editScene(db: Db, input: EditSceneInput): Promise<SceneEditResult> {
+  return db.transaction(async (tx) => {
+    const found = await findReviewableScene(tx, input);
+    if (!found.ok) return found;
+    const { gate } = found;
+
+    const patched = applyScenePatch(
+      gate.version.spec,
+      { ops: [{ op: 'update', sceneId: input.sceneId, changes: { narration: input.narration } }] },
+      { kind: 'user' },
+    );
+    if (!patched.ok) return { ok: false, reason: 'invalid', message: patched.errors.join('; ') };
+
+    const version = await createVersion(tx, {
+      videoId: gate.video.id,
+      spec: patched.value,
+      source: 'user_edit',
+      authorUserId: input.userId,
+      parentVersionId: input.versionId,
+      changeSummary: `người dùng sửa cảnh ${input.sceneId}`,
+    });
+    // Ở lại hộp duyệt với phiên bản mới; người duyệt quyết định trên bản này.
+    await transitionVideo(tx, { videoId: gate.video.id, from: ['pending_review'], to: 'pending_review' });
+    await writeAudit(tx, {
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      action: 'video.scene_edit',
+      targetType: 'video',
+      targetId: gate.video.id,
+      data: { versionId: input.versionId, sceneId: input.sceneId, newVersionId: version.id },
+    });
+    return { ok: true, versionId: version.id, versionNo: version.versionNo };
+  });
+}
+
+export interface ReviseSceneInput extends SceneGateInput {
+  userId: string;
+  instruction?: string | undefined;
+}
+
+export type SceneReviseResult =
+  | { ok: true; jobId: string }
+  | { ok: false; reason: SceneWriteFailure; message: string };
+
+/** Nhờ AI sửa một cảnh: chuyển sang needs_changes và xếp job llm. */
+export async function requestSceneRevision(db: Db, input: ReviseSceneInput): Promise<SceneReviseResult> {
+  return db.transaction(async (tx) => {
+    const found = await findReviewableScene(tx, input);
+    if (!found.ok) return found;
+    const { gate } = found;
+    if (gate.scene.lock !== null) {
+      return { ok: false, reason: 'locked', message: `cảnh ${input.sceneId} đã khóa do sửa tay, bỏ khóa trước khi nhờ AI` };
+    }
+
+    const moved = await transitionVideo(tx, { videoId: gate.video.id, from: ['pending_review'], to: 'needs_changes' });
+    if (!moved) return { ok: false, reason: 'not_reviewable', message: 'trạng thái video vừa thay đổi, tải lại để xem' };
+
+    const { job } = await enqueue(tx, {
+      workspaceId: input.workspaceId,
+      queue: 'llm',
+      type: JOB_TYPES.revise,
+      payload: {
+        videoId: input.videoId,
+        versionId: input.versionId,
+        sceneId: input.sceneId,
+        instruction: input.instruction ?? null,
+      },
+      videoId: input.videoId,
+      idempotencyKey: `${JOB_TYPES.revise}:${input.versionId}:${input.sceneId}`,
+    });
+    await writeAudit(tx, {
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      action: 'video.scene_revise',
+      targetType: 'video',
+      targetId: gate.video.id,
+      data: { versionId: input.versionId, sceneId: input.sceneId, jobId: job.id },
+    });
+    return { ok: true, jobId: job.id };
+  });
+}
+
+export * from '#src/video/job-types.ts';
 export * from '#src/video/draft.ts';

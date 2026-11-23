@@ -1,8 +1,21 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui';
 import { PERFORMANCE, PUBLISH_QUEUE } from '~/data/mock';
 import type { PublishItem } from '~/types';
 
 definePageMeta({ title: 'Đăng tải & hiệu quả' });
+
+type PerformanceRow = (typeof PERFORMANCE)[number];
+
+const RIGHT_ALIGN = { class: { th: 'text-right', td: 'text-right' } } as const;
+const performanceColumns: TableColumn<PerformanceRow>[] = [
+  { accessorKey: 'channel', header: 'Kênh', meta: { class: { td: 'font-medium' } } },
+  { accessorKey: 'views', header: 'Lượt xem', meta: RIGHT_ALIGN },
+  { accessorKey: 'completion', header: 'Xem hết', meta: RIGHT_ALIGN },
+  { accessorKey: 'clicks', header: 'Nhấp link', meta: RIGHT_ALIGN },
+  { accessorKey: 'orders', header: 'Đơn', meta: RIGHT_ALIGN },
+  { accessorKey: 'revenue', header: 'Hoa hồng', meta: { class: { th: 'text-right', td: 'text-right font-semibold' } } },
+];
 
 const tab = ref<'ready' | 'stats'>('ready');
 const queue = ref<PublishItem[]>(PUBLISH_QUEUE.map((p) => ({ ...p })));
@@ -40,11 +53,18 @@ const CHECKPOINTS: { key: Checkpoint; label: string }[] = [
   { key: '24h', label: '24 giờ' },
   { key: '7d', label: '7 ngày' },
 ];
+interface PerformanceMetrics {
+  views: number;
+  completion: number;
+  clicks: number;
+}
+
 const checkpoint = ref<Checkpoint>('24h');
-const metrics = reactive({ views: 0, completion: 0, clicks: 0 });
+const metrics = ref<PerformanceMetrics>({ views: 0, completion: 0, clicks: 0 });
 
 function savePerformanceMetrics(): void {
-  if (metrics.views < 0 || metrics.clicks < 0 || metrics.completion < 0 || metrics.completion > 100) {
+  const value = metrics.value;
+  if (value.views < 0 || value.clicks < 0 || value.completion < 0 || value.completion > 100) {
     message.warning('Số liệu không hợp lệ. Tỉ lệ xem hết phải từ 0 đến 100%.');
     return;
   }
@@ -176,29 +196,20 @@ const totals = computed(() => ({
       <StatCard label="Đơn hàng" :value="formatNumber(totals.orders)" icon="package" />
       <StatCard label="Hoa hồng ước tính" :value="formatCurrency(totals.revenue)" icon="trending-up" />
     </section>
-    <section class="card overflow-x-auto">
-      <table class="w-full min-w-[640px] border-collapse">
-        <thead>
-          <tr class="table-head border-b border-line">
-            <th class="px-5 py-3">Kênh</th>
-            <th class="px-5 py-3 text-right">Lượt xem</th>
-            <th class="px-5 py-3 text-right">Xem hết</th>
-            <th class="px-5 py-3 text-right">Nhấp link</th>
-            <th class="px-5 py-3 text-right">Đơn</th>
-            <th class="px-5 py-3 text-right">Hoa hồng</th>
-          </tr>
-        </thead>
-        <tbody class="tabular-nums">
-          <tr v-for="r in PERFORMANCE" :key="r.channel" class="border-b border-line last:border-b-0 hover:bg-hover">
-            <td class="px-5 py-3.5 font-medium">{{ r.channel }}</td>
-            <td class="px-5 py-3.5 text-right">{{ formatCompact(r.views) }}</td>
-            <td class="px-5 py-3.5 text-right">{{ formatPercent(r.completion) }}</td>
-            <td class="px-5 py-3.5 text-right">{{ formatNumber(r.clicks) }}</td>
-            <td class="px-5 py-3.5 text-right">{{ formatNumber(r.orders) }}</td>
-            <td class="px-5 py-3.5 text-right font-semibold">{{ formatCurrency(r.revenue) }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <section class="card overflow-hidden">
+      <UTable
+        :data="PERFORMANCE"
+        :columns="performanceColumns"
+        :ui="{ ...TABLE_UI, base: 'w-full min-w-[640px] border-collapse' }"
+        :meta="{ class: { tr: 'hover:bg-hover' } }"
+        class="tabular-nums"
+      >
+        <template #views-cell="{ row }">{{ formatCompact(row.original.views) }}</template>
+        <template #completion-cell="{ row }">{{ formatPercent(row.original.completion) }}</template>
+        <template #clicks-cell="{ row }">{{ formatNumber(row.original.clicks) }}</template>
+        <template #orders-cell="{ row }">{{ formatNumber(row.original.orders) }}</template>
+        <template #revenue-cell="{ row }">{{ formatCurrency(row.original.revenue) }}</template>
+      </UTable>
     </section>
   </template>
 </template>

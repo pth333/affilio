@@ -1,6 +1,6 @@
-# Production trên 1 VPS: postgres + temporal + api + worker + web + caddy (HTTPS, basic auth).
-# Chạy tại /opt/vm:  docker compose up -d   (đọc biến từ /opt/vm/.env)
-name: vm
+# Production trên 1 VPS: postgres + api + worker + web + caddy (HTTPS, basic auth).
+# Chạy tại /opt/affilio:  docker compose up -d   (đọc biến từ /opt/affilio/.env)
+name: affilio
 
 x-logging: &logging
   driver: json-file

@@ -35,6 +35,10 @@ export interface Scene {
   id: string;
   role: string;
   narration: string;
+  /** Thời lượng đã đặt (giây); null = lấy theo độ dài TTS/ước tính. */
+  duration?: number | null;
+  /** Khóa cảnh: null = AI được sửa, user/user_edit = người dùng đã sửa tay. */
+  lock?: 'user' | 'user_edit' | null;
   visual: { type: 'image' | 'ai_image' | 'ai_clip'; prompt?: string; asset_id: string | null; motion: string };
 }
 
@@ -83,6 +87,14 @@ export interface Channel {
   trend: number[];
 }
 
+/** Clip người dùng kéo thả vào thư viện (URL tạm, chỉ sống trong phiên hiện tại). */
+export interface ProductClip {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+}
+
 export interface LibraryProduct {
   id: string;
   name: string;
@@ -92,6 +104,17 @@ export interface LibraryProduct {
   affiliateUrl: string;
   hasClip: boolean;
   color: string;
+  /** Ảnh sản phẩm (data URL khi người dùng tải lên). */
+  imageUrl?: string | null;
+  clips?: ProductClip[];
+}
+
+/** Định dạng kịch bản cho popup tạo video. */
+export interface VideoFormat {
+  id: string;
+  name: string;
+  description: string;
+  glyph: string;
 }
 
 export interface DraftScene {

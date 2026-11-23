@@ -1,218 +1,149 @@
 <script setup lang="ts">
-import { DRAFTS } from '~/data/mock';
-import type { Draft } from '~/types';
+// Hộp thư duyệt: video do worker xử lý xong (pending_review) xuất hiện ở đây.
+// Trang chỉ điều phối; state dùng chung nằm ở stores/review.ts, giao diện tách thành các component review/*.
+import { storeToRefs } from 'pinia';
+import { useReviewStore } from '~/stores/review';
+import { STATUS_LABEL, type ReviewDecision } from '~/types';
 
 definePageMeta({ title: 'Hộp thư duyệt' });
 
 const route = useRoute();
-const drafts = ref<Draft[]>(DRAFTS.map((d) => ({ ...d })));
-const filter = ref<'all' | 'high' | 'warn'>('all');
-const selectedId = ref(typeof route.query.id === 'string' ? route.query.id : (drafts.value[0]?.id ?? ''));
-const feedback = ref('');
-const showFeedback = ref(false);
+const router = useRouter();
+const store = useReviewStore();
+const {
+  pendingVideos,
+  pendingCount,
+  detail,
+  selectedId,
+  loadingInbox,
+  loadingDetail,
+  busy,
+  canReview,
+  status,
+  scenes,
+} = storeToRefs(store);
 
-const filtered = computed(() =>
-  drafts.value.filter((d) => {
-    if (filter.value === 'high') return d.score >= 85;
-    if (filter.value === 'warn') return d.checks.some((c) => !c.passed);
-    return true;
-  }),
+const statusLabel = computed(() => (status.value ? STATUS_LABEL[status.value] : ''));
+const productName = computed(() => detail.value?.product.name ?? '');
+const versionNo = computed(() => detail.value?.version?.versionNo ?? null);
+const totalSeconds = computed(() => scenes.value.reduce((sum, scene) => sum + estimateSceneSeconds(scene), 0));
+
+/** Đồng bộ video đang chọn lên URL để mở lại/đọc link là thấy đúng video. */
+function syncQuery(id: string): void {
+  const current = typeof route.query.video === 'string' ? route.query.video : '';
+  if (current === id) return;
+  const query = { ...route.query };
+  if (id) query.video = id;
+  else delete query.video;
+  void router.replace({ query });
+}
+
+/** Chọn video chỉ đổi URL; watcher `route.query.video` bên dưới là nơi duy nhất nạp chi tiết. */
+function selectVideo(id: string): void {
+  if (id === store.selectedId) return;
+  const query = { ...route.query, video: id };
+  void router.replace({ query });
+}
+
+function focusScene(sceneId: string): void {
+  document.getElementById(`scene-${sceneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function decide(decision: ReviewDecision): Promise<void> {
+  await store.submitDecision(decision);
+}
+
+/** Tự làm mới danh sách + chi tiết để bắt video vừa xử lý xong quay lại hộp thư. */
+function pollInbox(): void {
+  if (document.hidden) return;
+  void store.refreshInbox();
+  if (store.selectedId) void store.loadDetail(store.selectedId);
+}
+
+let timer: ReturnType<typeof setInterval> | undefined;
+onMounted(async () => {
+  await store.refreshInbox();
+  const hasQuery = typeof route.query.video === 'string' && route.query.video.length > 0;
+  if (!hasQuery && store.pendingVideos[0]) selectVideo(store.pendingVideos[0].id);
+  timer = setInterval(pollInbox, 6000);
+});
+onBeforeUnmount(() => clearInterval(timer));
+
+// Store tự đổi video (vd. sau khi duyệt) thì đồng bộ ngược lên URL.
+watch(selectedId, (id) => syncQuery(id));
+
+// URL là nguồn duy nhất cho việc chọn video: chạy cả lần đầu mở trang và mỗi lần query đổi.
+watch(
+  () => route.query.video,
+  (value) => {
+    const id = typeof value === 'string' ? value : '';
+    if (id && id !== store.selectedId) void store.selectVideo(id);
+  },
+  { immediate: true },
 );
-const current = computed(() => drafts.value.find((d) => d.id === selectedId.value) ?? filtered.value[0] ?? null);
-const passedChecks = computed(() => current.value?.checks.filter((c) => c.passed).length ?? 0);
-
-/** Bỏ bản nháp đã xử lý khỏi danh sách và chuyển sang bản kế tiếp. */
-function removeDraftAndSelectNext(id: string): void {
-  const idx = drafts.value.findIndex((d) => d.id === id);
-  drafts.value.splice(idx, 1);
-  selectedId.value = drafts.value[Math.min(idx, drafts.value.length - 1)]?.id ?? '';
-  showFeedback.value = false;
-  feedback.value = '';
-}
-
-function approveDraft(): void {
-  if (!current.value) return;
-  removeDraftAndSelectNext(current.value.id);
-  message.success('Đã duyệt video. Video đã được chuyển sang mục Đăng tải.');
-}
-
-function rejectDraft(): void {
-  if (!current.value) return;
-  removeDraftAndSelectNext(current.value.id);
-  message.warning('Đã từ chối bản nháp. AI sẽ rút kinh nghiệm cho lần sau.');
-}
-
-function sendDraftFeedback(): void {
-  if (!current.value) return;
-  if (!feedback.value.trim()) {
-    message.warning('Hãy nhập góp ý trước khi gửi.');
-    return;
-  }
-  removeDraftAndSelectNext(current.value.id);
-  message.success('AI đã nhận ghi chú và đang chỉnh sửa bản nháp.');
-}
-
-/** Phím tắt: A duyệt, R từ chối, N góp ý (bỏ qua khi đang gõ). */
-function handleShortcutKey(e: KeyboardEvent): void {
-  const t = e.target;
-  if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const key = e.key.toLowerCase();
-  if (key === 'a') approveDraft();
-  else if (key === 'r') rejectDraft();
-  else if (key === 'n') showFeedback.value = true;
-}
-onMounted(() => window.addEventListener('keydown', handleShortcutKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcutKey));
-
-function formatTimecode(s: number): string {
-  return `0:${String(s).padStart(2, '0')}`;
-}
 </script>
 
 <template>
-  <PageHeader title="Hộp thư duyệt" :description="`${drafts.length} bản nháp đang chờ. Duyệt nhanh bằng phím A / R / N.`">
+  <PageHeader
+    title="Hộp thư duyệt"
+    :description="`${pendingCount} video chờ duyệt. Xem timeline, sửa từng cảnh rồi duyệt khi đã ưng ý.`"
+  >
     <template #actions>
-      <button class="btn" @click="message.info('Lịch sử phiên bản sẽ sớm khả dụng.')"><AppIcon name="history" :size="16" /> Lịch sử phiên bản</button>
+      <button class="btn" :disabled="loadingInbox" @click="store.refreshInbox()">
+        <AppIcon name="rotate-ccw" :size="16" :class="loadingInbox ? 'animate-spin' : ''" /> Làm mới
+      </button>
+      <NuxtLink to="/videos" class="btn"><AppIcon name="film" :size="16" /> Danh sách video</NuxtLink>
     </template>
   </PageHeader>
 
-  <div v-if="!current" class="card grid place-items-center gap-3 p-14 text-center">
-    <AppIcon name="circle-check" :size="40" class="text-ok" />
-    <p class="text-[1.15rem] font-semibold">Đã duyệt hết!</p>
-    <p class="text-muted">Không còn bản nháp nào chờ bạn. AI sẽ báo khi có video mới.</p>
-    <NuxtLink to="/publishing" class="btn btn-primary mt-2">Sang mục Đăng tải</NuxtLink>
-  </div>
+  <ReviewEmptyState v-if="!selectedId && !detail" />
 
   <div v-else class="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-    <!-- Cột 1: danh sách bản nháp -->
-    <aside class="card flex flex-col overflow-hidden">
-      <div class="border-b border-line p-3">
-        <div class="tabs w-full">
-          <button class="tab flex-1 px-2" :class="{ 'tab-active': filter === 'all' }" @click="filter = 'all'">Tất cả</button>
-          <button class="tab flex-1 px-2" :class="{ 'tab-active': filter === 'high' }" @click="filter = 'high'">Điểm cao</button>
-          <button class="tab flex-1 px-2" :class="{ 'tab-active': filter === 'warn' }" @click="filter = 'warn'">Cần xem</button>
-        </div>
-      </div>
-      <ul class="max-h-[640px] overflow-y-auto">
-        <li v-for="d in filtered" :key="d.id">
-          <button
-            class="flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors"
-            :class="d.id === current.id ? 'bg-primary-soft' : 'hover:bg-hover'"
-            @click="selectedId = d.id"
-          >
-            <ProductThumb :name="d.productName" :color="d.color" :size="38" />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate font-medium">{{ d.productName }}</span>
-              <span class="block truncate text-[0.82rem] text-muted">{{ d.channelName }} · {{ d.createdAt }}</span>
-            </span>
-            <ScoreBadge :score="d.score" />
-          </button>
-        </li>
-        <li v-if="filtered.length === 0" class="p-6 text-center text-muted">Không có bản nháp phù hợp.</li>
-      </ul>
-    </aside>
+    <ReviewInboxList
+      :videos="pendingVideos"
+      :selected-id="selectedId"
+      :count="pendingCount"
+      :loading="loadingInbox"
+      @select="selectVideo"
+    />
 
-    <!-- Cột 2: xem trước + kịch bản -->
-    <section class="card p-5">
+    <section v-if="detail" class="card p-5">
       <div class="mb-4 flex flex-wrap items-center gap-2">
-        <h2 class="text-[1.15rem] font-bold">{{ current.productName }}</h2>
-        <span class="badge bg-hover text-muted">{{ current.channelName }}</span>
-        <span class="badge bg-hover text-muted">{{ current.duration }} giây</span>
+        <h2 class="text-[1.15rem] font-bold">{{ productName }}</h2>
+        <StatusBadge v-if="status" :status="status" />
+        <span class="badge bg-hover text-muted">v{{ versionNo ?? '—' }}</span>
+        <span class="badge bg-hover text-muted">{{ scenes.length }} cảnh · {{ formatTimecode(totalSeconds) }}</span>
       </div>
 
-      <div class="grid gap-6 md:grid-cols-[230px_1fr] xl:grid-cols-1 2xl:grid-cols-[230px_1fr]">
-        <!-- Điện thoại 9:16 -->
-        <div class="relative mx-auto aspect-9/16 w-[230px] overflow-hidden rounded-[22px] border-[6px] border-[#1f1d27] bg-[#1f1d27] text-white">
-          <div class="absolute inset-0" :style="{ background: `linear-gradient(160deg, ${current.color}, #1f1d27 85%)` }" />
-          <div class="absolute inset-x-3 top-3 flex items-center justify-between text-[0.75rem] opacity-80">
-            <span>{{ current.channelName }}</span>
-            <AppIcon name="volume-2" :size="14" />
-          </div>
-          <button class="absolute top-1/2 left-1/2 grid size-12 -translate-1/2 place-items-center rounded-full bg-white/20 backdrop-blur" aria-label="Phát thử" @click="message.info('Bản xem trước video sẽ có khi render xong.')">
-            <AppIcon name="play" :size="20" />
-          </button>
-          <p class="absolute inset-x-3 bottom-16 text-center text-[0.95rem] leading-snug font-semibold [text-shadow:0_1px_4px_#0008]">
-            {{ current.hook }}
-          </p>
-          <span class="absolute bottom-4 left-3 rounded-md bg-white px-2 py-1 text-[0.8rem] font-bold text-[#292a36]">{{ formatCurrency(current.price) }}</span>
-        </div>
+      <p v-if="store.isProcessing" class="mb-4 flex items-center gap-2 rounded-lg bg-warn-soft px-4 py-3 text-[0.9rem] text-warn">
+        <AppIcon name="rotate-ccw" :size="16" class="animate-spin" />
+        Worker đang xử lý ({{ statusLabel }}). Video sẽ tự quay lại hộp thư khi xong — trang tự cập nhật.
+      </p>
+      <p v-else-if="!canReview" class="mb-4 rounded-lg bg-hover px-4 py-3 text-[0.9rem] text-muted">
+        Video đang ở trạng thái “{{ statusLabel }}” nên chỉ xem được, không sửa hay duyệt.
+      </p>
 
-        <!-- Kịch bản theo cảnh -->
-        <div>
-          <p class="eyebrow mb-3">Kịch bản</p>
-          <ol class="space-y-3">
-            <li v-for="s in current.scenes" :key="s.role" class="rounded-lg border border-line p-3.5">
-              <div class="mb-1 flex items-center justify-between gap-2">
-                <span class="font-semibold text-primary-strong">{{ s.role }}</span>
-                <span class="text-[0.8rem] text-muted tabular-nums">{{ formatTimecode(s.start) }} – {{ formatTimecode(s.end) }}</span>
-              </div>
-              <p>{{ s.text }}</p>
-            </li>
-          </ol>
-        </div>
+      <div class="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <ReviewVideoPreview :product-name="productName" :scenes="scenes" />
+        <SceneTimeline :scenes="scenes" @focus="focusScene" />
       </div>
 
-      <!-- Dòng thời gian -->
-      <div class="mt-5 flex h-8 overflow-hidden rounded-lg text-[0.75rem] font-medium" aria-label="Dòng thời gian các cảnh">
-        <div
-          v-for="(s, i) in current.scenes"
-          :key="s.role"
-          class="flex min-w-0 items-center justify-center truncate border-r border-surface px-1 last:border-r-0"
-          :class="['bg-primary/80 text-white', 'bg-primary/55 text-white', 'bg-primary/35', 'bg-primary/20'][i]"
-          :style="{ flex: s.end - s.start }"
-        >
-          {{ s.role }}
-        </div>
-      </div>
+      <SceneEditorList
+        :version-id="detail.version?.id ?? ''"
+        :scenes="scenes"
+        :can-review="canReview"
+        :busy="busy"
+      />
     </section>
 
-    <!-- Cột 3: kiểm tra + hành động -->
-    <aside class="flex flex-col gap-5">
-      <div class="card p-5">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold">Điểm gợi ý AI</p>
-          <ScoreBadge :score="current.score" />
-        </div>
-        <ProgressBar :value="current.score" class="mt-3" label="Điểm gợi ý AI" />
-      </div>
-
-      <div class="card p-5">
-        <div class="mb-3 flex items-center justify-between">
-          <p class="font-semibold">Kiểm tra nguyên tắc</p>
-          <span class="text-muted">{{ passedChecks }}/{{ current.checks.length }}</span>
-        </div>
-        <ul class="space-y-2">
-          <li v-for="c in current.checks" :key="c.label" class="flex items-start gap-2">
-            <AppIcon :name="c.passed ? 'circle-check' : 'triangle-alert'" :size="17" class="mt-0.5" :class="c.passed ? 'text-ok' : 'text-warn'" />
-            <span :class="c.passed ? '' : 'text-warn'">{{ c.label }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="card p-5">
-        <p class="mb-3 font-semibold">Quyết định</p>
-        <div v-if="showFeedback" class="mb-3">
-          <textarea
-            v-model="feedback"
-            rows="3"
-            maxlength="2000"
-            class="field h-auto w-full py-2"
-            placeholder="Ví dụ: Mở đầu cần nhắc giá sớm hơn…"
-          />
-          <div class="mt-2 flex gap-2">
-            <button class="btn btn-sm btn-primary" @click="sendDraftFeedback">Gửi góp ý</button>
-            <button class="btn btn-sm btn-ghost" @click="showFeedback = false">Huỷ</button>
-          </div>
-        </div>
-        <div class="grid gap-2">
-          <button class="btn btn-ok" @click="approveDraft"><AppIcon name="check" :size="16" /> Duyệt video <kbd class="kbd">A</kbd></button>
-          <button class="btn" @click="showFeedback = true">
-            <AppIcon name="message-square" :size="16" /> Góp ý cho AI <kbd class="kbd">N</kbd>
-          </button>
-          <button class="btn btn-bad" @click="rejectDraft"><AppIcon name="x" :size="16" /> Từ chối <kbd class="kbd">R</kbd></button>
-        </div>
-      </div>
+    <aside v-if="detail" class="flex flex-col gap-5">
+      <ReviewCheckPanel :check="detail.check" :notes="detail.notes" :reviews="detail.reviews" />
+      <ReviewDecisionPanel :can-review="canReview" :busy="busy" @approve="decide('approve')" @reject="decide('reject')" />
     </aside>
+
+    <p v-if="!detail && selectedId" class="card p-5 text-muted">
+      <AppIcon v-if="loadingDetail" name="rotate-ccw" :size="16" class="mr-2 inline animate-spin" />
+      {{ loadingDetail ? 'Đang tải video…' : 'Không tải được video này. Thử làm mới hoặc chọn video khác.' }}
+    </p>
   </div>
 </template>

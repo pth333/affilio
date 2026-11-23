@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { AI_QUOTA, CURRENT_USER, MAIN_NAV } from '~/data/mock';
+import { useReviewStore } from '~/stores/review';
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
 const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
+const reviewStore = useReviewStore();
+
+// Badge "Hộp thư duyệt" lấy số video chờ duyệt thật từ store thay vì số mock.
+onMounted(() => {
+  void reviewStore.refreshInbox();
+});
+
+function navCount(item: { to: string; count?: number }): number {
+  return item.to === '/review' ? reviewStore.pendingCount : (item.count ?? 0);
+}
 
 function isNavItemActive(to: string): boolean {
   return to === '/' ? route.path === '/' : route.path.startsWith(to);
@@ -59,24 +70,24 @@ watch(
           >
             <AppIcon :name="item.icon" :size="18" />
             <span class="flex-1">{{ item.label }}</span>
-            <span v-if="item.count" class="rounded-full bg-primary-chip px-2 text-[0.75rem] font-semibold text-primary-chip-fg">
-              {{ item.count }}
+            <span v-if="navCount(item) > 0" class="rounded-full bg-primary-chip px-2 text-[0.75rem] font-semibold text-primary-chip-fg">
+              {{ navCount(item) }}
             </span>
           </NuxtLink>
         </li>
       </ul>
 
       <NuxtLink
-        to="/review"
+        to="/videos"
         class="mt-4 flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/50 px-3 py-2.5 font-medium text-primary-strong hover:bg-primary-soft"
       >
         <AppIcon name="plus" :size="17" />
-        Tạo lô video mới
+        Tạo video mới
       </NuxtLink>
 
       <!-- Thẻ gói -->
       <div
-        class="mt-5 rounded-[10px] border border-[#ebe6fa] bg-linear-to-b from-[#f6f3ff] to-[#f0effb] p-4 dark:border-line dark:from-primary-soft dark:to-surface"
+        class="mt-5 rounded-[10px] border border-[#f4dccd] bg-linear-to-b from-[#fdf1e6] to-[#fbe5d8] p-4 dark:border-line dark:from-primary-soft dark:to-surface"
       >
         <p class="font-semibold">Ý tưởng lớn. Bắt đầu nhỏ.</p>
         <p class="mt-1 text-[0.85rem] text-muted">Đã dùng {{ AI_QUOTA.used }}/{{ AI_QUOTA.limit }} lượt AI hôm nay.</p>

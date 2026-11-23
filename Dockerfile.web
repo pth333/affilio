@@ -7,8 +7,8 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web apps/web
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter "@vm/web..."
-RUN pnpm --filter @vm/web build
+    pnpm install --frozen-lockfile --filter "@affilio/web..."
+RUN pnpm --filter @affilio/web build
 
 FROM node:24-slim AS runtime
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000

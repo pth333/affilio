@@ -12,7 +12,7 @@ COPY apps/cli/package.json apps/cli/
 COPY apps/web/package.json apps/web/
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod --ignore-scripts \
-      --filter "@vm/api..." --filter "@vm/worker..." --filter "@vm/cli..."
+      --filter "@affilio/api..." --filter "@affilio/worker..." --filter "@affilio/cli..."
 
 FROM node:24-slim AS runtime
 # ffmpeg cho render (M1), font Noto để phụ đề tiếng Việt hiển thị đúng, tini để chuyển tín hiệu SIGTERM.

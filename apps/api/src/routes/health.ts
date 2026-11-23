@@ -1,17 +1,8 @@
-import { pingDb } from '@vm/core';
 import type { FastifyPluginAsync } from 'fastify';
+import { healthController } from '#src/controllers/health.controller.ts';
 
+/** Chỉ khai báo đường dẫn → controller. Healthcheck gọi liên tục nên chỉ log từ warn trở lên. */
 export const healthRoutes: FastifyPluginAsync = async (app) => {
-  // Healthcheck gọi liên tục → chỉ log khi warn trở lên.
-  app.get('/health', { logLevel: 'warn' }, async () => ({ status: 'ok' }));
-
-  app.get('/ready', { logLevel: 'warn' }, async (req, reply) => {
-    try {
-      await pingDb(app.deps.handle);
-      return { status: 'ready' };
-    } catch (err) {
-      req.log.warn({ err }, 'DB chưa sẵn sàng');
-      return reply.status(503).send({ status: 'not_ready' });
-    }
-  });
+  app.get('/health', { logLevel: 'warn' }, healthController.health);
+  app.get('/ready', { logLevel: 'warn' }, healthController.ready);
 };

@@ -1,12 +1,12 @@
-# Postgres + Temporal cho máy dev; api/worker/web chạy trực tiếp bằng pnpm dev:*.
-name: vm-dev
+# Chỉ Postgres cho máy dev; api/worker/web chạy trực tiếp bằng pnpm dev:*.
+name: affilio-dev
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-vm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vm}
-      POSTGRES_DB: ${POSTGRES_DB:-vm}
+      POSTGRES_USER: ${POSTGRES_USER:-affilio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-affilio}
+      POSTGRES_DB: ${POSTGRES_DB:-affilio}
     ports:
       - "5432:5432"
     volumes:

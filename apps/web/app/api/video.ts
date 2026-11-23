@@ -22,4 +22,14 @@ export const videoApi = {
     http.post<unknown>(`${buildVideoPath(id)}/review`, body, config),
   addSceneNote: (id: string, body: { versionId: string; sceneId: string; text: string }, config?: AxiosRequestConfig) =>
     http.post<unknown>(`${buildVideoPath(id)}/notes`, body, config),
+  /** Người duyệt sửa tay lời thoại một cảnh: tạo phiên bản mới, video vẫn chờ duyệt. */
+  updateScene: (id: string, sceneId: string, body: { versionId: string; narration: string }, config?: AxiosRequestConfig) =>
+    http.patch<{ versionId: string; versionNo: number }>(
+      `${buildVideoPath(id)}/scenes/${encodeURIComponent(sceneId)}`,
+      body,
+      config,
+    ),
+  /** Nhờ AI viết lại một cảnh; video tạm rời hộp duyệt rồi tự quay lại khi worker xong. */
+  reviseScene: (id: string, sceneId: string, body: { versionId: string; instruction?: string }, config?: AxiosRequestConfig) =>
+    http.post<{ jobId: string }>(`${buildVideoPath(id)}/scenes/${encodeURIComponent(sceneId)}/revise`, body, config),
 };

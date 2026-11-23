@@ -45,7 +45,7 @@ function selectTemplate(t: ContentTemplate): void {
   <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
     <article v-for="t in visible" :key="t.id" class="card flex flex-col overflow-hidden">
       <div class="grid h-32 place-items-center dark:opacity-80" :style="{ background: t.cover }">
-        <span class="text-[2.6rem] font-extrabold tracking-[-0.04em] text-[#292a36]/70">{{ t.glyph }}</span>
+        <span class="text-[2.6rem] font-extrabold tracking-[-0.04em] text-[#2c211c]/70">{{ t.glyph }}</span>
       </div>
       <div class="flex flex-1 flex-col p-5">
         <div class="flex items-center gap-2">

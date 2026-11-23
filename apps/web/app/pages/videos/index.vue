@@ -1,6 +1,9 @@
 <script setup lang="ts">
-// Danh sách video từ API thật (/api/videos). Lỗi request đã được http interceptor báo bằng message.error.
-import { STATUS_LABEL, VIDEO_STATUSES, type Product, type VideoListItem, type VideoStatus } from '~/types';
+// Danh sách video từ API thật (/api/videos). Video mới được tạo từ popup chọn kênh + sản phẩm + định dạng.
+// Bảng dùng UTable (Nuxt UI) với giao diện chung ở utils/helpers.ts (TABLE_UI).
+// Lỗi request đã được http interceptor báo bằng message.error.
+import type { TableColumn } from '@nuxt/ui';
+import { STATUS_LABEL, VIDEO_STATUSES, type VideoListItem, type VideoStatus } from '~/types';
 
 definePageMeta({ title: 'Video' });
 
@@ -10,6 +13,17 @@ const status = ref<VideoStatus | ''>('pending_review');
 const items = ref<VideoListItem[]>([]);
 const cursor = ref<string | null>(null);
 const loading = ref(false);
+const showCreateDialog = ref(false);
+
+const columns: TableColumn<VideoListItem>[] = [
+  { accessorKey: 'productName', header: 'Sản phẩm' },
+  { accessorKey: 'status', header: 'Trạng thái', meta: { class: { th: 'w-44', td: 'w-44' } } },
+  {
+    accessorKey: 'updatedAt',
+    header: 'Cập nhật',
+    meta: { class: { th: 'hidden w-44 sm:table-cell', td: 'hidden w-44 text-muted sm:table-cell' } },
+  },
+];
 
 async function loadVideos(reset = true, silent = false): Promise<void> {
   loading.value = true;
@@ -28,49 +42,10 @@ async function loadVideos(reset = true, silent = false): Promise<void> {
   }
 }
 
-// ── Sản phẩm + tạo video
-const products = ref<Product[]>([]);
-const form = reactive({ name: '', affiliateUrl: '', description: '' });
-const productId = ref('');
-const busy = ref(false);
-
-async function loadProducts(): Promise<void> {
-  try {
-    products.value = (await productApi.getProducts({ limit: 100 })).items;
-    if (!productId.value) productId.value = products.value[0]?.id ?? '';
-  } catch {
-    products.value = [];
-  }
-}
-
-async function addProductAndSelect(): Promise<void> {
-  busy.value = true;
-  try {
-    const p = await productApi.createProduct({ ...form, description: form.description || undefined });
-    Object.assign(form, { name: '', affiliateUrl: '', description: '' });
-    await loadProducts();
-    productId.value = p.id;
-    message.success('Đã thêm sản phẩm vào thư viện');
-  } catch {
-    // interceptor đã hiện thông báo lỗi
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function createDraftVideo(): Promise<void> {
-  if (!productId.value) return;
-  busy.value = true;
-  try {
-    await videoApi.createVideo(productId.value);
-    message.success('Đã tạo video nháp. AI đang viết kịch bản.');
-    if (status.value === '') await loadVideos();
-    else status.value = '';
-  } catch {
-    // interceptor đã hiện thông báo lỗi
-  } finally {
-    busy.value = false;
-  }
+/** Video nháp mới đang ở trạng thái "chờ xử lý": bỏ lọc để người dùng thấy ngay kết quả. */
+function handleVideoCreated(): void {
+  if (status.value === '') void loadVideos();
+  else status.value = '';
 }
 
 watch(status, () => loadVideos());
@@ -78,7 +53,7 @@ watch(status, () => loadVideos());
 // Tự làm mới khi còn video đang xử lý.
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
-  void Promise.all([loadVideos(), loadProducts()]);
+  void loadVideos();
   timer = setInterval(() => {
     if (!loading.value && items.value.some((v) => BUSY.includes(v.status))) void loadVideos(true, true);
   }, 5000);
@@ -87,65 +62,88 @@ onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <template>
-  <PageHeader eyebrow="Dữ liệu thật từ API" title="Video" description="Thêm sản phẩm, tạo video nháp và theo dõi trạng thái xử lý." />
-
-  <section class="card mb-5 p-5">
-    <h2 class="mb-4 text-[1.1rem] font-semibold">Tạo video</h2>
-    <form class="flex flex-wrap items-center gap-2" @submit.prevent="addProductAndSelect">
-      <input v-model="form.name" class="field" placeholder="Tên sản phẩm" required maxlength="200" />
-      <input v-model="form.affiliateUrl" class="field min-w-50 flex-1" type="url" placeholder="Link affiliate" required />
-      <input v-model="form.description" class="field min-w-50 flex-1" placeholder="Mô tả (tuỳ chọn)" />
-      <button class="btn" :disabled="busy"><AppIcon name="plus" :size="16" /> Thêm sản phẩm</button>
-    </form>
-    <div class="mt-3 flex flex-wrap items-center gap-2">
-      <select v-model="productId" class="field" :disabled="products.length === 0">
-        <option v-if="products.length === 0" value="">Chưa có sản phẩm</option>
-        <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
-      <button class="btn btn-primary" :disabled="busy || !productId" @click="createDraftVideo">
-        <AppIcon name="sparkles" :size="16" /> Tạo video nháp
+  <PageHeader
+    title="Video"
+    description="Tạo video nháp từ thư viện sản phẩm và theo dõi trạng thái xử lý của từng bản."
+  >
+    <template #actions>
+      <button class="btn btn-primary" @click="showCreateDialog = true">
+        <AppIcon name="plus" :size="17" /> Tạo video
       </button>
-    </div>
-  </section>
+    </template>
+  </PageHeader>
 
   <section class="card overflow-hidden">
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
-      <h2 class="text-[1.1rem] font-semibold">Danh sách video</h2>
+      <div>
+        <h2 class="text-[1.1rem] font-semibold">Danh sách video</h2>
+        <p class="text-[0.85rem] text-muted">Trang này tự làm mới khi còn video đang xử lý.</p>
+      </div>
       <div class="flex flex-wrap items-center gap-2">
         <select v-model="status" class="field h-9">
           <option value="">Tất cả trạng thái</option>
           <option v-for="s in VIDEO_STATUSES" :key="s" :value="s">{{ STATUS_LABEL[s] }}</option>
         </select>
-        <button class="btn btn-sm h-9" :disabled="loading" @click="loadVideos()"><AppIcon name="rotate-ccw" :size="15" /> Làm mới</button>
+        <button class="btn btn-sm h-9" :disabled="loading" @click="loadVideos()">
+          <AppIcon name="rotate-ccw" :size="15" /> Làm mới
+        </button>
       </div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full border-collapse">
-        <thead>
-          <tr class="table-head border-b border-line">
-            <th class="px-5 py-3">Sản phẩm</th>
-            <th class="px-5 py-3">Trạng thái</th>
-            <th class="hidden px-5 py-3 sm:table-cell">Cập nhật</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="v in items" :key="v.id" class="border-b border-line align-top last:border-b-0 hover:bg-hover">
-            <td class="px-5 py-3">
-              <NuxtLink :to="`/videos/${v.id}`" class="font-medium hover:text-primary">{{ v.productName }}</NuxtLink>
-              <div class="text-[0.8rem] text-muted">{{ v.id }}</div>
-              <div v-if="v.failedReason" class="text-[0.85rem] text-bad">{{ v.failedReason }}</div>
-            </td>
-            <td class="px-5 py-3"><StatusBadge :status="v.status" /></td>
-            <td class="hidden px-5 py-3 text-muted sm:table-cell">{{ formatDateTime(v.updatedAt) }}</td>
-          </tr>
-          <tr v-if="!loading && items.length === 0">
-            <td colspan="3" class="px-5 py-10 text-center text-muted">Không có video nào.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+
+    <UTable
+      :data="items"
+      :columns="columns"
+      :ui="TABLE_UI"
+      :loading="loading"
+      :meta="{ class: { tr: 'hover:bg-hover' } }"
+    >
+      <template #productName-cell="{ row }">
+        <div class="flex items-center gap-3">
+          <ProductThumb :name="row.original.productName" :color="pickAccentColor(row.original.productName)" :size="38" />
+          <div class="min-w-0">
+            <NuxtLink :to="{ path: '/review', query: { video: row.original.id } }" class="font-medium hover:text-primary">
+              {{ row.original.productName }}
+            </NuxtLink>
+            <div class="text-[0.8rem] text-muted">{{ row.original.id }}</div>
+            <div v-if="row.original.failedReason" class="text-[0.85rem] text-bad">{{ row.original.failedReason }}</div>
+          </div>
+        </div>
+      </template>
+
+      <template #status-cell="{ row }">
+        <StatusBadge :status="row.original.status" />
+      </template>
+
+      <template #updatedAt-cell="{ row }">
+        {{ formatDateTime(row.original.updatedAt) }}
+      </template>
+
+      <template #loading>
+        <span class="inline-flex items-center gap-2 text-muted">
+          <AppIcon name="rotate-ccw" :size="16" class="animate-spin" /> Đang tải…
+        </span>
+      </template>
+
+      <template #empty>
+        <div class="flex flex-col items-center gap-3 text-center">
+          <span class="grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary">
+            <AppIcon name="film" :size="26" />
+          </span>
+          <div>
+            <p class="font-semibold text-fg">Chưa có video nào ở đây</p>
+            <p class="mt-1 text-[0.9rem] text-muted">Chọn sản phẩm và định dạng để AI viết những bản nháp đầu tiên.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="showCreateDialog = true">
+            <AppIcon name="sparkles" :size="15" /> Tạo video
+          </button>
+        </div>
+      </template>
+    </UTable>
+
     <div v-if="cursor" class="border-t border-line px-5 py-3">
       <button class="btn btn-sm" :disabled="loading" @click="loadVideos(false)">Xem thêm</button>
     </div>
   </section>
+
+  <CreateVideoDialog :open="showCreateDialog" @close="showCreateDialog = false" @created="handleVideoCreated" />
 </template>

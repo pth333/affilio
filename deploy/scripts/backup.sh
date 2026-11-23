@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sao lưu DB (pg_dump -Fc) + volume storage, giữ KEEP bản gần nhất mỗi loại.
-# Cron trên VPS:  15 3 * * *  /opt/vm/scripts/backup.sh >> /opt/vm/backups/backup.log 2>&1
+# Cron trên VPS:  15 3 * * *  /opt/affilio/scripts/backup.sh >> /opt/affilio/backups/backup.log 2>&1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
