@@ -3,50 +3,48 @@ import { z } from 'zod';
 import type { Db } from '#src/db/index.ts';
 import { newId } from '#src/db/id.ts';
 import { asset, product, video } from '#src/db/schema.ts';
-import { enqueue, type Job } from '#src/queue/index.ts';
+import { startDraftWorkflow, type TemporalClient } from '#src/temporal/index.ts';
 import { REAL_ONLY_ROLES, SCENE_ROLES, SPEC_SCHEMA_VERSION, validateSpec, type Scene, type ValidationResult, type VideoSpec } from '#src/spec/schema.ts';
-import { writeAudit, type Video } from '#src/video/index.ts';
-
-/** Tên job dùng chung giữa API/CLI (enqueue) và worker (handler). */
-export const JOB_TYPES = {
-  draft: 'video.draft',
-  renderPreview: 'video.render_preview',
-  renderFinal: 'video.render_final',
-} as const;
+import { markVideoFailed, writeAudit, type Video } from '#src/video/index.ts';
 
 export type DraftOutcome =
-  | { ok: true; video: Video; job: Job }
+  | { ok: true; video: Video; workflowId: string }
   | { ok: false; reason: 'product_not_found'; message: string };
 
-/** Tạo video mới cho sản phẩm và xếp job viết nháp vào hàng llm. */
+/**
+ * Tạo video mới cho sản phẩm rồi start workflow viết nháp trên Temporal.
+ * Start sau khi commit (worker phải thấy video); start lỗi thì đánh dấu video failed để không treo ở `queued`.
+ */
 export async function requestDraft(
   db: Db,
+  temporal: TemporalClient,
   { workspaceId, productId, userId }: { workspaceId: string; productId: string; userId: string | null },
 ): Promise<DraftOutcome> {
-  return db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     const [p] = await tx
       .select({ id: product.id })
       .from(product)
       .where(and(eq(product.id, productId), eq(product.workspaceId, workspaceId), isNull(product.archivedAt)));
-    if (!p) return { ok: false, reason: 'product_not_found', message: 'không tìm thấy sản phẩm' };
+    if (!p) return null;
 
     const [v] = await tx
       .insert(video)
       .values({ id: newId('video'), workspaceId, productId, status: 'queued', createdBy: userId })
       .returning();
     if (!v) throw new Error('không tạo được video');
-
-    const { job } = await enqueue(tx, {
-      workspaceId,
-      queue: 'llm',
-      type: JOB_TYPES.draft,
-      payload: { videoId: v.id },
-      videoId: v.id,
-      idempotencyKey: `${JOB_TYPES.draft}:${v.id}`,
-    });
     await writeAudit(tx, { workspaceId, userId, action: 'video.create', targetType: 'video', targetId: v.id, data: { productId } });
-    return { ok: true, video: v, job };
+    return v;
   });
+  if (!created) return { ok: false, reason: 'product_not_found', message: 'không tìm thấy sản phẩm' };
+
+  try {
+    const { workflowId } = await startDraftWorkflow(temporal, { workspaceId, videoId: created.id });
+    return { ok: true, video: created, workflowId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await markVideoFailed(db, created.id, 'drafting', `không start được workflow: ${message}`);
+    throw new Error(`không start được workflow viết nháp cho video ${created.id}`, { cause: err });
+  }
 }
 
 // ───────────────────────── Kịch bản LLM → spec ─────────────────────────

@@ -24,9 +24,9 @@ const envSchema = z.object({
   WORKER_ID: optionalString,
   WORKER_LLM_CONCURRENCY: z.coerce.number().int().min(1).default(2),
   WORKER_RENDER_CONCURRENCY: z.coerce.number().int().min(1).default(1),
-  WORKER_POLL_MS: z.coerce.number().int().min(100).default(1000),
-  JOB_LOCK_SECONDS: z.coerce.number().int().min(10).default(120),
-  JOB_HEARTBEAT_SECONDS: z.coerce.number().int().min(5).default(30),
+
+  TEMPORAL_ADDRESS: z.string().default('localhost:7233'),
+  TEMPORAL_NAMESPACE: z.string().default('default'),
 
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_DIR: z.string().default('./storage'),

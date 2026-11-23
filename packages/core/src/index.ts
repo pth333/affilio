@@ -2,7 +2,7 @@ export * from '#src/config/index.ts';
 export * from '#src/logger.ts';
 export * from '#src/db/index.ts';
 export * from '#src/spec/index.ts';
-export * from '#src/queue/index.ts';
+export * from '#src/temporal/index.ts';
 export * from '#src/providers/index.ts';
 export * from '#src/storage/index.ts';
 export * from '#src/render/index.ts';

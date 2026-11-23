@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type { Db } from '#src/db/index.ts';
 import { newId } from '#src/db/id.ts';
 import { aiCallLog, quotaUsage, type AiPurpose } from '#src/db/schema.ts';
-import { nextUtcMidnight } from '#src/queue/index.ts';
 
 /**
  * Provider AI dùng chung một interface để đổi nhà cung cấp mà không sửa nghiệp vụ (mục 6 plan v4).
@@ -225,6 +224,11 @@ export function createProviders(config: {
 
 export function utcDay(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
+}
+
+/** Hạn mức ngày reset lúc 00:00 UTC — thời điểm thử lại khi hết hạn mức. */
+export function nextUtcMidnight(now: Date = new Date()): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 }
 
 export interface CallContext {

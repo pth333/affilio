@@ -1,4 +1,4 @@
-# Chỉ Postgres cho máy dev; api/worker/web chạy trực tiếp bằng pnpm dev:*.
+# Postgres + Temporal cho máy dev; api/worker/web chạy trực tiếp bằng pnpm dev:*.
 name: vm-dev
 services:
   postgres:
@@ -16,5 +16,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  # Temporal dev server (SQLite, kèm UI tại http://localhost:8233), namespace default có sẵn.
+  temporal:
+    image: temporalio/temporal:1.10.1
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    volumes:
+      - temporaldata:/data
 volumes:
   pgdata:
+  temporaldata:

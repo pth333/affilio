@@ -1,26 +1,27 @@
 import { parseArgs } from 'node:util';
 import {
   and,
-  count,
   createDb,
+  createTemporalClient,
   desc,
-  enqueue,
   ensureDefaultWorkspace,
   eq,
-  JOB_TYPES,
-  jobs,
   loadConfig,
   newId,
   product,
   requestDraft,
   REVIEW_DECISIONS,
   reviewVideo,
+  startRenderFinalWorkflow,
+  TASK_QUEUES,
   video,
   VIDEO_STATUSES,
   videoCheck,
   videoVersion,
   type Db,
   type DefaultContext,
+  type TemporalClient,
+  type TemporalHandle,
 } from '@vm/core';
 import { z } from 'zod';
 
@@ -33,14 +34,21 @@ const HELP = `Cách dùng: pnpm cli <lệnh> [tham số]
 
   product:add --name <tên> --url <link affiliate> [--desc <mô tả>] [--category <danh mục>]
   product:list
-  draft <productId>                 tạo video mới và xếp job viết nháp
+  draft <productId>                 tạo video mới và start workflow viết nháp
   list [--status <trạng thái>]      liệt kê video
   show <videoId>                    xem chi tiết video + spec hiện tại
   review <videoId> <approve|reject|needs_changes>
-  jobs [--status <trạng thái>]      xem hàng đợi job
+  workflows [--status <trạng thái>] xem workflow trên Temporal (Running|Completed|Failed|…)
 `;
 
-type Command = (ctx: { db: Db; session: DefaultContext; positionals: string[]; values: Values }) => Promise<void>;
+type Command = (ctx: {
+  db: Db;
+  session: DefaultContext;
+  /** Chỉ kết nối Temporal khi lệnh cần. */
+  temporal: () => Promise<TemporalClient>;
+  positionals: string[];
+  values: Values;
+}) => Promise<void>;
 type Values = Record<string, string | boolean | undefined>;
 
 function str(values: Values, key: string): string | undefined {
@@ -67,6 +75,9 @@ const productInput = z.object({
   category: z.string().trim().max(100).optional(),
 });
 
+/** Giá trị hợp lệ của ExecutionStatus trong visibility query — whitelist để không ghép chuỗi tuỳ ý vào query. */
+const WORKFLOW_STATUSES = ['Running', 'Completed', 'Failed', 'Canceled', 'Terminated', 'TimedOut', 'ContinuedAsNew'] as const;
+
 const COMMANDS: Record<string, Command> = {
   async 'product:add'({ db, session, values }) {
     const input = productInput.parse({
@@ -92,11 +103,11 @@ const COMMANDS: Record<string, Command> = {
     console.table(rows);
   },
 
-  async draft({ db, session, positionals }) {
+  async draft({ db, session, temporal, positionals }) {
     const productId = required(positionals[0], 'productId');
-    const result = await requestDraft(db, { workspaceId: session.workspaceId, productId, userId: session.userId });
+    const result = await requestDraft(db, await temporal(), { workspaceId: session.workspaceId, productId, userId: session.userId });
     if (!result.ok) throw usageError(result.message);
-    console.log(`Đã tạo video ${result.video.id}, job ${result.job.id} (chạy worker để xử lý)`);
+    console.log(`Đã tạo video ${result.video.id}, workflow ${result.workflowId} (chạy worker để xử lý)`);
   },
 
   async list({ db, session, values }) {
@@ -127,7 +138,7 @@ const COMMANDS: Record<string, Command> = {
     console.log(JSON.stringify({ video: v, version: version[0] ?? null, check: check[0] ?? null }, null, 2));
   },
 
-  async review({ db, session, positionals }) {
+  async review({ db, session, temporal, positionals }) {
     const videoId = required(positionals[0], 'videoId');
     const decision = z.enum(REVIEW_DECISIONS).parse(positionals[1]);
     const [v] = await db
@@ -138,30 +149,21 @@ const COMMANDS: Record<string, Command> = {
     const result = await reviewVideo(db, { workspaceId: session.workspaceId, videoId, userId: session.userId, versionId: v.currentVersionId, decision });
     if (!result.ok) throw usageError(result.message);
     if (decision === 'approve') {
-      await enqueue(db, {
-        workspaceId: session.workspaceId,
-        queue: 'render',
-        type: JOB_TYPES.renderFinal,
-        payload: { videoId, versionId: v.currentVersionId },
-        videoId,
-        idempotencyKey: `${JOB_TYPES.renderFinal}:${v.currentVersionId}`,
-      });
+      await startRenderFinalWorkflow(await temporal(), { workspaceId: session.workspaceId, videoId, versionId: v.currentVersionId });
     }
     console.log(`Video ${videoId} → ${result.video.status}`);
   },
 
-  async jobs({ db, session, values }) {
-    const status = str(values, 'status');
-    const [rows, summary] = await Promise.all([
-      db
-        .select({ id: jobs.id, queue: jobs.queue, type: jobs.type, status: jobs.status, attempts: jobs.attempts, runAfter: jobs.runAfter, lastError: jobs.lastError })
-        .from(jobs)
-        .where(and(eq(jobs.workspaceId, session.workspaceId), status ? eq(jobs.status, z.enum(['queued', 'running', 'done', 'failed', 'cancelled']).parse(status)) : undefined))
-        .orderBy(desc(jobs.id))
-        .limit(30),
-      db.select({ queue: jobs.queue, status: jobs.status, n: count() }).from(jobs).where(eq(jobs.workspaceId, session.workspaceId)).groupBy(jobs.queue, jobs.status),
-    ]);
-    console.table(summary);
+  async workflows({ temporal, values }) {
+    const status = z.enum(WORKFLOW_STATUSES).optional().parse(str(values, 'status'));
+    const client = await temporal();
+    // Lọc theo task queue của app; Temporal chưa gắn workspace nên lệnh này thấy mọi workspace.
+    const query = [`TaskQueue = '${TASK_QUEUES.video}'`, status ? `ExecutionStatus = '${status}'` : ''].filter(Boolean).join(' AND ');
+    const rows: Record<string, string | undefined>[] = [];
+    for await (const wf of client.workflow.list({ query })) {
+      rows.push({ id: wf.workflowId, type: wf.type, status: wf.status.name, start: wf.startTime.toISOString(), close: wf.closeTime?.toISOString() });
+      if (rows.length >= 30) break;
+    }
     console.table(rows);
   },
 };
@@ -187,9 +189,14 @@ async function main(): Promise<number> {
 
   const config = loadConfig();
   const handle = createDb(config.DATABASE_URL, { max: 2, appName: 'vm-cli' });
+  let temporalHandle: Promise<TemporalHandle> | undefined;
+  const temporal = async (): Promise<TemporalClient> => {
+    temporalHandle ??= createTemporalClient(config);
+    return (await temporalHandle).client;
+  };
   try {
     const session = await ensureDefaultWorkspace(handle.db, { workspaceName: config.SEED_WORKSPACE_NAME, userEmail: config.SEED_USER_EMAIL });
-    await command({ db: handle.db, session, positionals: rest, values });
+    await command({ db: handle.db, session, temporal, positionals: rest, values });
     return 0;
   } catch (err) {
     if (err instanceof Error && err.cause === USAGE) {
@@ -202,7 +209,8 @@ async function main(): Promise<number> {
     }
     throw err;
   } finally {
-    await handle.close();
+    // Kết nối Temporal lỗi thì lỗi đó đã được ném từ lệnh, ở đây chỉ dọn kết nối đã mở.
+    await Promise.all([handle.close(), temporalHandle?.then((t) => t.close(), () => undefined)]);
   }
 }
 

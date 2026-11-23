@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import sensible from '@fastify/sensible';
-import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage } from '@vm/core';
+import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage, TemporalClient } from '@vm/core';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { healthRoutes } from '#src/routes/health.ts';
@@ -12,6 +12,8 @@ export interface AppDeps {
   handle: DbHandle;
   config: AppConfig;
   storage: Storage;
+  /** Start workflow (viết nháp, render) trên Temporal. */
+  temporal: TemporalClient;
   /**
    * Workspace/user của phiên. Giai đoạn đầu lấy từ seed phía server (basic auth ở Caddy);
    * không bao giờ nhận workspace_id từ client.

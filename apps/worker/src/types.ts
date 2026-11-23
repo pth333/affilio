@@ -1,26 +1,30 @@
-import type { AppConfig, Db, Job, JobQueue, Logger, ProviderSet, Storage } from '@vm/core';
+import type { AppConfig, Db, Logger, ProviderSet, Storage } from '@vm/core';
 
 export interface WorkerDeps {
   db: Db;
   config: AppConfig;
   providers: ProviderSet;
   storage: Storage;
+  logger: Logger;
 }
 
-export interface JobContext {
-  job: Job;
-  deps: WorkerDeps;
-  log: Logger;
-  /** Bị hủy khi worker tắt quá thời gian ân hạn hoặc mất quyền giữ job. */
-  signal: AbortSignal;
+/** Kết quả activity viết nháp — workflow dựa vào đây để đi tiếp, chờ hạn mức hoặc dừng. */
+export type DraftResult =
+  | { kind: 'skipped'; reason: string }
+  /** Hết hạn mức AI: workflow ngủ tới retryAt rồi thử lại, không tính lần thử. */
+  | { kind: 'deferred'; retryAt: string }
+  | { kind: 'drafted'; versionId: string; passed: boolean };
+
+export type RenderResult = { kind: 'done' } | { kind: 'skipped'; reason: string };
+
+export interface RenderPreviewInput {
+  workspaceId: string;
+  videoId: string;
+  versionId: string;
 }
 
-/** done = xong; defer = dời lại mà không tính lần thử (vd. hết hạn mức). */
-export type JobResult = { kind: 'done' } | { kind: 'defer'; runAfter: Date; reason: string };
-
-export interface JobHandler {
-  queue: JobQueue;
-  /** Bước ghi vào video.failed_step khi hết lượt thử. */
+export interface MarkFailedInput {
+  videoId: string;
   step: string;
-  run(ctx: JobContext): Promise<JobResult>;
+  reason: string;
 }

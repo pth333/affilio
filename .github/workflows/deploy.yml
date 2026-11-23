@@ -75,7 +75,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: deploy/docker-compose.yml,deploy/Caddyfile,deploy/scripts/backup.sh
+          source: deploy/docker-compose.yml,deploy/Caddyfile,deploy/scripts/backup.sh,deploy/temporal/dynamicconfig.yaml
           target: /opt/vm
           strip_components: 1
       - name: Pull image và khởi động lại

@@ -2,4 +2,6 @@ packages:
   - packages/*
   - apps/*
 allowBuilds:
+  '@swc/core': false
   esbuild: true
+  protobufjs: false

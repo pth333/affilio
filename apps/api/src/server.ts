@@ -1,4 +1,4 @@
-import { createDb, createLogger, createStorage, ensureDefaultWorkspace, loadConfig, runMigrations } from '@vm/core';
+import { createDb, createLogger, createStorage, createTemporalClient, ensureDefaultWorkspace, loadConfig, runMigrations } from '@vm/core';
 import { buildApp } from '#src/app.ts';
 
 const config = loadConfig();
@@ -11,7 +11,8 @@ async function main(): Promise<void> {
     logger.info('đã chạy migration');
   }
   const session = await ensureDefaultWorkspace(handle.db, { workspaceName: config.SEED_WORKSPACE_NAME, userEmail: config.SEED_USER_EMAIL });
-  const app = await buildApp({ db: handle.db, handle, config, storage: createStorage(config), session }, logger);
+  const temporal = await createTemporalClient(config);
+  const app = await buildApp({ db: handle.db, handle, config, storage: createStorage(config), session, temporal: temporal.client }, logger);
 
   let closing = false;
   const shutdown = async (signal: string): Promise<void> => {
@@ -25,7 +26,7 @@ async function main(): Promise<void> {
     force.unref();
     try {
       await app.close();
-      await handle.close();
+      await Promise.all([handle.close(), temporal.close()]);
       process.exit(0);
     } catch (err) {
       logger.error({ err }, 'lỗi khi tắt api');

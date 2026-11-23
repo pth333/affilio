@@ -1,64 +1,63 @@
 import { hostname } from 'node:os';
-import { createDb, createLogger, createProviders, createStorage, loadConfig, markVideoFailed, recoverExpiredJobs } from '@vm/core';
-import { HANDLERS } from '#src/handlers/index.ts';
-import { runQueue } from '#src/runner.ts';
+import { fileURLToPath } from 'node:url';
+import { NativeConnection, Worker } from '@temporalio/worker';
+import { createDb, createLogger, createProviders, createStorage, loadConfig, TASK_QUEUES } from '@vm/core';
+import { createActivities } from '#src/activities.ts';
 
 const config = loadConfig();
 const logger = createLogger({ name: 'worker', level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' });
 
-/** Thời gian chờ job đang chạy khi tắt; nhỏ hơn stop_grace_period (60s) của compose. */
+/** Thời gian chờ activity đang chạy khi tắt; nhỏ hơn stop_grace_period (60s) của compose. */
 const SHUTDOWN_GRACE_MS = 50_000;
-const RECOVER_INTERVAL_MS = 30_000;
 
 async function main(): Promise<void> {
-  const workerId = config.WORKER_ID ?? `${hostname()}-${process.pid}`;
+  const identity = config.WORKER_ID ?? `${hostname()}-${process.pid}`;
   const handle = createDb(config.DATABASE_URL, {
     max: config.WORKER_LLM_CONCURRENCY + config.WORKER_RENDER_CONCURRENCY + 2,
     appName: 'vm-worker',
   });
   const providers = createProviders(config);
-  const deps = { db: handle.db, config, providers, storage: createStorage(config) };
-  logger.info({ workerId, llm: `${providers.llm.provider}/${providers.llm.model}` }, 'worker khởi động');
+  const activities = createActivities({ db: handle.db, config, providers, storage: createStorage(config), logger });
+  const { draftVideo, renderPreview, renderFinal, markVideoFailed } = activities;
 
-  const stop = new AbortController();
-  const abort = new AbortController();
-
-  const recover = setInterval(() => {
-    recoverExpiredJobs(handle.db)
-      .then(async ({ requeued, failed }) => {
-        if (requeued > 0) logger.warn({ requeued }, 'đưa lại job hết hạn giữ chỗ');
-        for (const job of failed) {
-          logger.error({ jobId: job.id, jobType: job.type }, 'job hết hạn giữ chỗ và hết lượt thử');
-          if (job.videoId) await markVideoFailed(handle.db, job.videoId, HANDLERS[job.type]?.step ?? job.type, job.lastError ?? 'worker chết giữa chừng');
-        }
-      })
-      .catch((err: unknown) => logger.error({ err }, 'recover job lỗi'));
-  }, RECOVER_INTERVAL_MS);
-
-  const shutdown = (signal: string): void => {
-    if (stop.signal.aborted) return;
-    logger.info({ signal }, 'đang tắt worker, chờ job đang chạy');
-    stop.abort();
-    clearInterval(recover);
-    setTimeout(() => {
-      logger.warn('quá thời gian ân hạn, hủy job đang chạy');
-      abort.abort();
-    }, SHUTDOWN_GRACE_MS).unref();
-  };
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-
-  const common = {
-    workerId,
-    pollMs: config.WORKER_POLL_MS,
-    lockSeconds: config.JOB_LOCK_SECONDS,
-    heartbeatSeconds: config.JOB_HEARTBEAT_SECONDS,
-  };
-  await Promise.all([
-    runQueue(deps, logger, { ...common, queue: 'llm', concurrency: config.WORKER_LLM_CONCURRENCY }, stop.signal, abort.signal),
-    runQueue(deps, logger, { ...common, queue: 'render', concurrency: config.WORKER_RENDER_CONCURRENCY }, stop.signal, abort.signal),
+  const connection = await NativeConnection.connect({ address: config.TEMPORAL_ADDRESS });
+  const common = { connection, namespace: config.TEMPORAL_NAMESPACE, identity, shutdownGraceTime: SHUTDOWN_GRACE_MS };
+  // SIGTERM/SIGINT do Runtime của Temporal bắt sẵn: ngừng nhận việc, chờ activity đang chạy tối đa SHUTDOWN_GRACE_MS.
+  const workers = await Promise.all([
+    Worker.create({
+      ...common,
+      taskQueue: TASK_QUEUES.video,
+      workflowsPath: fileURLToPath(new URL('./workflows.ts', import.meta.url)),
+      activities: { markVideoFailed },
+    }),
+    Worker.create({
+      ...common,
+      taskQueue: TASK_QUEUES.llm,
+      activities: { draftVideo },
+      maxConcurrentActivityTaskExecutions: config.WORKER_LLM_CONCURRENCY,
+    }),
+    Worker.create({
+      ...common,
+      taskQueue: TASK_QUEUES.render,
+      activities: { renderPreview, renderFinal },
+      maxConcurrentActivityTaskExecutions: config.WORKER_RENDER_CONCURRENCY,
+    }),
   ]);
+  logger.info({ identity, temporal: config.TEMPORAL_ADDRESS, llm: `${providers.llm.provider}/${providers.llm.model}` }, 'worker khởi động');
+
+  // Một worker chết thì tắt luôn các worker còn lại để container restart sạch.
+  const results = await Promise.allSettled(
+    workers.map((w) =>
+      w.run().catch((err: unknown) => {
+        for (const other of workers) if (other.getState() === 'RUNNING') other.shutdown();
+        throw err;
+      }),
+    ),
+  );
+  await connection.close();
   await handle.close();
+  const failed = results.find((r) => r.status === 'rejected');
+  if (failed) throw failed.reason;
   logger.info('worker đã tắt');
 }
 

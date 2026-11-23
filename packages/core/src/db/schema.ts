@@ -375,6 +375,10 @@ export const batchItem = pgTable(
   (t) => [primaryKey({ columns: [t.batchId, t.productId] })],
 );
 
+/**
+ * @deprecated Hàng đợi Postgres cũ — luồng xử lý đã chuyển sang Temporal (packages/core/src/temporal).
+ * Giữ bảng để không mất lịch sử; xoá bằng migration riêng khi đã chắc không cần.
+ */
 export const JOB_QUEUES = ['llm', 'render'] as const;
 export type JobQueue = (typeof JOB_QUEUES)[number];
 export const JOB_STATUSES = ['queued', 'running', 'done', 'failed', 'cancelled'] as const;

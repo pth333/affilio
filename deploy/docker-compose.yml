@@ -1,4 +1,4 @@
-# Production trên 1 VPS: postgres + api + worker + web + caddy (HTTPS, basic auth).
+# Production trên 1 VPS: postgres + temporal + api + worker + web + caddy (HTTPS, basic auth).
 # Chạy tại /opt/vm:  docker compose up -d   (đọc biến từ /opt/vm/.env)
 name: vm
 
@@ -18,6 +18,18 @@ x-app-env: &app-env
   NODE_ENV: production
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   STORAGE_DIR: /data/storage
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: default
+
+# Temporal dùng chung container postgres nhưng DB riêng: temporal + temporal_visibility.
+x-temporal-db: &temporal-db
+  DB: postgres12
+  DB_PORT: "5432"
+  POSTGRES_SEEDS: postgres
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PWD: ${POSTGRES_PASSWORD}
+  DBNAME: temporal
+  VISIBILITY_DBNAME: temporal_visibility
 
 services:
   postgres:
@@ -36,6 +48,66 @@ services:
       retries: 20
     logging: *logging
 
+  # Một lần mỗi lần up: tạo DB (nếu chưa có) rồi cập nhật schema Temporal lên bản mới nhất.
+  temporal-schema:
+    image: temporalio/admin-tools:1.32.2
+    environment: *temporal-db
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        SCHEMA=/etc/temporal/schema/postgresql/v12
+        for pair in "$$DBNAME:temporal" "$$VISIBILITY_DBNAME:visibility"; do
+          db="$${pair%%:*}"; dir="$${pair##*:}"
+          sql() { temporal-sql-tool --plugin "$$DB" --ep "$$POSTGRES_SEEDS" -p "$$DB_PORT" -u "$$POSTGRES_USER" --pw "$$POSTGRES_PWD" --db "$$db" "$$@"; }
+          sql create-database || echo "DB $$db đã có"
+          sql setup-schema -v 0.0
+          sql update-schema -d "$$SCHEMA/$$dir/versioned"
+        done
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+    logging: *logging
+
+  temporal:
+    image: temporalio/server:1.32.2
+    restart: unless-stopped
+    environment:
+      <<: *temporal-db
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/config/dynamicconfig/docker.yaml
+    volumes:
+      - ./temporal/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig/docker.yaml:ro
+    depends_on:
+      temporal-schema: { condition: service_completed_successfully }
+    logging: *logging
+
+  # Chờ server sẵn sàng rồi tạo namespace (bỏ qua nếu đã có). api/worker đợi bước này xong.
+  temporal-init:
+    image: temporalio/admin-tools:1.32.2
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        until temporal operator cluster health >/dev/null 2>&1; do echo "chờ temporal..."; sleep 2; done
+        temporal operator namespace describe -n default >/dev/null 2>&1 || temporal operator namespace create -n default --retention 7d
+    depends_on:
+      - temporal
+    restart: "no"
+    logging: *logging
+
+  # UI chỉ mở trên localhost của VPS — xem qua SSH tunnel: ssh -L 8080:127.0.0.1:8080 vps
+  temporal-ui:
+    image: temporalio/ui:2.58.1
+    restart: unless-stopped
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - temporal
+    logging: *logging
+
   api:
     <<: *app
     environment:
@@ -44,6 +116,7 @@ services:
       API_PORT: "3000"
     depends_on:
       postgres: { condition: service_healthy }
+      temporal-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
       interval: 10s
@@ -57,11 +130,12 @@ services:
       <<: *app-env
     working_dir: /app/apps/worker
     command: ["node", "--import", "tsx", "src/main.ts"]
-    # Worker chờ job đang chạy tối đa ~50s khi nhận SIGTERM.
+    # Worker chờ activity đang chạy tối đa ~50s khi nhận SIGTERM.
     stop_grace_period: 60s
     depends_on:
       # api chạy migration lúc khởi động → worker đợi api healthy.
       api: { condition: service_healthy }
+      temporal-init: { condition: service_completed_successfully }
 
   web:
     image: ${IMAGE_WEB:?đặt IMAGE_WEB}:${IMAGE_TAG:-latest}

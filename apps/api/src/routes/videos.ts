@@ -2,8 +2,6 @@ import {
   and,
   desc,
   eq,
-  enqueue,
-  JOB_TYPES,
   lt,
   newId,
   product,
@@ -12,6 +10,7 @@ import {
   review,
   reviewNote,
   reviewVideo,
+  startRenderFinalWorkflow,
   video,
   VIDEO_STATUSES,
   videoCheck,
@@ -32,7 +31,7 @@ const noteSchema = z.object({
 });
 
 export const videoRoutes: FastifyPluginAsync = async (app) => {
-  const { db, session } = app.deps;
+  const { db, session, temporal } = app.deps;
 
   /** Hộp duyệt: danh sách video, lọc theo trạng thái. */
   app.get('/', async (req) => {
@@ -80,10 +79,10 @@ export const videoRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/', async (req, reply) => {
     const { productId } = createSchema.parse(req.body);
-    const result = await requestDraft(db, { workspaceId: session.workspaceId, productId, userId: session.userId });
+    const result = await requestDraft(db, temporal, { workspaceId: session.workspaceId, productId, userId: session.userId });
     if (!result.ok) return reply.notFound(result.message);
-    req.log.info({ videoId: result.video.id, jobId: result.job.id }, 'đã xếp job viết nháp');
-    return reply.status(202).send({ video: result.video, jobId: result.job.id });
+    req.log.info({ videoId: result.video.id, workflowId: result.workflowId }, 'đã start workflow viết nháp');
+    return reply.status(202).send({ video: result.video, workflowId: result.workflowId });
   });
 
   app.post('/:id/review', async (req, reply) => {
@@ -94,15 +93,8 @@ export const videoRoutes: FastifyPluginAsync = async (app) => {
       return result.reason === 'not_found' ? reply.notFound(result.message) : reply.conflict(result.message);
     }
     if (body.decision === 'approve') {
-      // Idempotent theo phiên bản: duyệt lại cùng bản không render hai lần.
-      await enqueue(db, {
-        workspaceId: session.workspaceId,
-        queue: 'render',
-        type: JOB_TYPES.renderFinal,
-        payload: { videoId: id, versionId: body.versionId },
-        videoId: id,
-        idempotencyKey: `${JOB_TYPES.renderFinal}:${body.versionId}`,
-      });
+      // Idempotent theo phiên bản (workflow ID): duyệt lại cùng bản không render hai lần.
+      await startRenderFinalWorkflow(temporal, { workspaceId: session.workspaceId, videoId: id, versionId: body.versionId });
     }
     return result.video;
   });
