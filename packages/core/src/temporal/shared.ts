@@ -1,3 +1,5 @@
+import type { VideoSpec } from '#src/spec/schema.ts';
+
 /**
  * Hằng số + kiểu dùng chung giữa API/CLI (start workflow) và worker (workflow + activity).
  * File này KHÔNG được import gì có side effect / Node API: nó bị bundle vào sandbox workflow.
@@ -20,6 +22,8 @@ export const WORKFLOW_TYPES = {
 export interface VideoDraftInput {
   workspaceId: string;
   videoId: string;
+  /** Kịch bản người dùng đã duyệt ở bước gợi ý; có thì activity bỏ bước gọi AI. */
+  spec?: VideoSpec;
 }
 
 export interface VideoRenderFinalInput {

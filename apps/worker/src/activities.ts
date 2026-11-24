@@ -3,30 +3,30 @@ import {
   applyScenePatch,
   buildDraftPrompt,
   buildDraftSpec,
+  buildDraftSystemPrompt,
   callProvider,
   canFinalRender,
   checkHardRules,
   createVersion,
-  DRAFT_SYSTEM_PROMPT,
   eq,
   extractJson,
   markVideoFailed,
   newId,
   product,
   productImageIds,
+  templateContentFor,
   transitionVideo,
+  validateSpec,
   video,
   videoCheck,
   videoVersion,
   type VideoDraftInput,
   type VideoRenderFinalInput,
   type VideoReviseInput,
+  type VideoSpec,
 } from '@affilio/core';
 import { z } from 'zod';
 import type { DraftResult, MarkFailedInput, RenderPreviewInput, RenderResult, ReviseResult, WorkerDeps } from '#src/types.ts';
-
-/** Giọng mặc định cho đến khi có template (M2). */
-const DEFAULT_VOICE = { provider: 'edge', name: 'vi-VN-HoaiMyNeural' } as const;
 
 const REVISE_SYSTEM_PROMPT = [
   'Bạn viết lại đúng MỘT cảnh trong kịch bản video ngắn bán hàng affiliate tiếng Việt.',
@@ -60,7 +60,7 @@ export function createActivities(deps: WorkerDeps) {
 
   return {
     /** queued → drafting → auto_check → previewing | rejected_auto (mục 4 plan v4). */
-    async draftVideo({ workspaceId, videoId }: VideoDraftInput): Promise<DraftResult> {
+    async draftVideo({ workspaceId, videoId, spec: providedSpec }: VideoDraftInput): Promise<DraftResult> {
       const ctx = Context.current();
       const log = activityLog();
       const [row] = await db
@@ -80,46 +80,73 @@ export function createActivities(deps: WorkerDeps) {
         if (!moved) return { kind: 'skipped', reason: `video đang ở trạng thái ${row.video.status}` };
       }
 
-      const request = { system: DRAFT_SYSTEM_PROMPT, prompt: buildDraftPrompt(row.product), maxTokens: 800 };
-      const llm = providers.llm;
-      const outcome = await callProvider(
-        db,
-        {
-          workspaceId,
-          purpose: 'script',
-          provider: llm.provider,
-          model: llm.model,
-          estUnits: llm.estimateUnits(request),
-          dailyLimit: providers.dailyLimits[llm.provider],
-          jobId: ctx.info.workflowExecution?.workflowId ?? ctx.info.activityId,
-          videoId,
-          prompt: request.prompt,
-        },
-        () => llm.complete(request, ctx.cancellationSignal),
-        (text) => text,
-      );
-      if (!outcome.ok) {
-        log.warn({ retryAt: outcome.retryAt }, 'hết hạn mức AI trong ngày, dời lại');
-        return { kind: 'deferred', retryAt: outcome.retryAt.toISOString() };
+      const content = await templateContentFor(db, workspaceId, row.video.templateId);
+      const images = await productImageIds(db, workspaceId, row.product.id);
+
+      // Hai đường vào: người dùng đã duyệt kịch bản (spec có sẵn) hoặc AI viết mới hoàn toàn.
+      let spec: VideoSpec;
+      if (providedSpec) {
+        const validated = validateSpec(providedSpec);
+        if (!validated.ok) throw new Error(`kịch bản đã duyệt không hợp lệ: ${validated.errors.join('; ')}`);
+        spec = validated.value;
+      } else {
+        const request = { system: buildDraftSystemPrompt(content), prompt: buildDraftPrompt(row.product), maxTokens: 800 };
+        const llm = providers.llm;
+        const outcome = await callProvider(
+          db,
+          {
+            workspaceId,
+            purpose: 'script',
+            provider: llm.provider,
+            model: llm.model,
+            estUnits: llm.estimateUnits(request),
+            dailyLimit: providers.dailyLimits[llm.provider],
+            jobId: ctx.info.workflowExecution?.workflowId ?? ctx.info.activityId,
+            videoId,
+            prompt: request.prompt,
+          },
+          () => llm.complete(request, ctx.cancellationSignal),
+          (text) => text,
+        );
+        if (!outcome.ok) {
+          log.warn({ retryAt: outcome.retryAt }, 'hết hạn mức AI trong ngày, dời lại');
+          return { kind: 'deferred', retryAt: outcome.retryAt.toISOString() };
+        }
+
+        const built = buildDraftSpec({
+          llmText: outcome.value,
+          productId: row.product.id,
+          productImageIds: images,
+          voice: content.voice,
+          roles: content.scenes.map((scene) => scene.role),
+          template: row.video.templateId ? { id: row.video.templateId, version: row.video.templateVersion ?? 1 } : undefined,
+        });
+        if (!built.ok) throw new Error(`kịch bản LLM không hợp lệ: ${built.errors.join('; ')}`);
+        spec = built.value;
       }
 
-      const images = await productImageIds(db, workspaceId, row.product.id);
-      const built = buildDraftSpec({ llmText: outcome.value, productId: row.product.id, productImageIds: images, voice: DEFAULT_VOICE });
-      if (!built.ok) throw new Error(`kịch bản LLM không hợp lệ: ${built.errors.join('; ')}`);
-      const spec = built.value;
-
       const rules = checkHardRules(spec, { affiliateUrl: row.product.affiliateUrl, productAssetIds: images });
-      const passed = rules.every((r) => r.passed);
+      const passed = rules.every((rule) => rule.passed);
+      // Kịch bản người dùng đã duyệt: chỉ ghi nhận luật cứng để họ thấy, không tự loại khỏi hộp duyệt.
+      const nextStatus = providedSpec || passed ? 'previewing' : 'rejected_auto';
 
       const versionId = await db.transaction(async (tx) => {
-        const version = await createVersion(tx, { videoId, spec, source: 'ai_draft', changeSummary: 'bản nháp AI' });
+        const version = await createVersion(tx, {
+          videoId,
+          spec,
+          source: 'ai_draft',
+          changeSummary: providedSpec ? 'kịch bản AI đã được người dùng duyệt' : 'bản nháp AI',
+        });
         await transitionVideo(tx, { videoId, from: ['drafting'], to: 'auto_check' });
         await tx.insert(videoCheck).values({ id: newId('videoCheck'), videoVersionId: version.id, rules, passed });
-        await transitionVideo(tx, { videoId, from: ['auto_check'], to: passed ? 'previewing' : 'rejected_auto' });
+        await transitionVideo(tx, { videoId, from: ['auto_check'], to: nextStatus });
         return version.id;
       });
 
-      log.info({ versionId, passed, failedRules: rules.filter((r) => !r.passed).map((r) => r.rule) }, 'đã viết nháp');
+      log.info(
+        { versionId, passed, approved: Boolean(providedSpec), failedRules: rules.filter((r) => !r.passed).map((r) => r.rule) },
+        'đã lưu kịch bản',
+      );
       return { kind: 'drafted', versionId, passed };
     },
 

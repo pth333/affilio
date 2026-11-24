@@ -91,6 +91,7 @@ export const ASSET_KINDS = [
 ] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 export const ASSET_SOURCES = ['shop', 'self', 'ai', 'library'] as const;
+export type AssetSource = (typeof ASSET_SOURCES)[number];
 
 export interface AssetMeta {
   w?: number;
@@ -127,6 +128,34 @@ export const asset = pgTable(
     uniqueIndex('asset_ws_cache_key_uq').on(t.workspaceId, t.cacheKey).where(sql`cache_key is not null`),
     index('asset_ws_kind_idx').on(t.workspaceId, t.kind),
     index('asset_product_idx').on(t.productId),
+  ],
+);
+
+/** Ảnh sản phẩm: nối product ↔ asset. `asset` giữ tệp, bảng này giữ thứ tự, ảnh chính và alt. */
+export const productImage = pgTable(
+  'product_image',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id')
+      .notNull()
+      .references(() => workspace.id),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    assetId: text('asset_id')
+      .notNull()
+      .references(() => asset.id),
+    /** Thứ tự hiển thị trong thư viện (0 là ảnh đầu tiên). */
+    position: integer('position').notNull().default(0),
+    /** Ảnh đại diện của sản phẩm; mỗi sản phẩm tối đa một ảnh chính (ràng buộc bằng unique index). */
+    isPrimary: boolean('is_primary').notNull().default(false),
+    alt: text('alt'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('product_image_product_asset_uq').on(t.productId, t.assetId),
+    uniqueIndex('product_image_one_primary_uq').on(t.productId).where(sql`is_primary`),
+    index('product_image_product_pos_idx').on(t.productId, t.position),
   ],
 );
 

@@ -41,6 +41,11 @@ export function conflict(message: string): AppError {
   return new AppError(409, 'Conflict', message);
 }
 
+/** Hết hạn mức AI trong ngày (thử lại sau). */
+export function tooManyRequests(message: string): AppError {
+  return new AppError(429, 'Too Many Requests', message);
+}
+
 /** Danh sách lỗi từng trường của Zod, dùng chung cho validate() và error handler. */
 export function formatZodIssues(error: z.ZodError): FieldIssue[] {
   return error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }));

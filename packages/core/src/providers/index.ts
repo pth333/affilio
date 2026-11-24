@@ -57,7 +57,40 @@ export interface ClipGenProvider {
 
 // ───────────────────────── Stub (dev/test, không cần khóa) ─────────────────────────
 
-/** Trả kịch bản JSON cố định để chạy trọn luồng mà không tốn hạn mức. */
+const STUB_ROLES = new Set(['hook', 'intro', 'problem', 'benefit', 'demo', 'proof', 'compare', 'cta']);
+/** Cảnh cần prompt ảnh AI; demo/proof bắt buộc dùng ảnh sản phẩm thật nên prompt = null. */
+const STUB_AI_IMAGE_ROLES = new Set(['hook', 'intro', 'problem', 'benefit', 'compare']);
+
+/** Đọc thứ tự cảnh mà template yêu cầu từ system prompt (dạng "1. hook — ..."). */
+function stubRoles(system: string): string[] {
+  const roles = Array.from(system.matchAll(/^\s*\d+\.\s*([a-z_]+)/gm))
+    .map((match) => match[1] ?? '')
+    .filter((role) => STUB_ROLES.has(role));
+  return roles.length > 0 ? roles : ['hook', 'benefit', 'demo', 'cta'];
+}
+
+function stubNarration(role: string, productName: string): string {
+  switch (role) {
+    case 'hook':
+      return `Bạn đã thử ${productName} chưa?`;
+    case 'intro':
+      return `Hôm nay mình giới thiệu ${productName}.`;
+    case 'problem':
+      return 'Cách cũ khiến việc này mất thời gian hơn cần thiết.';
+    case 'benefit':
+      return `${productName} giúp việc hằng ngày gọn gàng hơn hẳn.`;
+    case 'demo':
+      return 'Dùng rất đơn giản, chỉ vài bước là xong.';
+    case 'proof':
+      return 'Mình dùng thử hai tuần rồi, vẫn ổn định như ngày đầu.';
+    case 'compare':
+      return 'So với lựa chọn cùng giá, cái này chắc chắn hơn.';
+    default:
+      return 'Link mua mình để ở phần mô tả nhé.';
+  }
+}
+
+/** Trả kịch bản JSON theo đúng định dạng template để chạy trọn luồng mà không tốn hạn mức. */
 export class StubLlm implements LlmProvider {
   readonly provider = 'stub';
   readonly model = 'stub-llm';
@@ -69,12 +102,11 @@ export class StubLlm implements LlmProvider {
   async complete(req: LlmRequest): Promise<ProviderResult<string>> {
     const productName = /Sản phẩm:\s*(.+)/.exec(req.prompt)?.[1]?.trim() ?? 'sản phẩm';
     const script = {
-      scenes: [
-        { role: 'hook', narration: `Bạn đã thử ${productName} chưa?`, prompt: 'a curious person looking at a product, vertical, soft light' },
-        { role: 'benefit', narration: `${productName} giúp việc hằng ngày gọn gàng hơn hẳn.`, prompt: null },
-        { role: 'demo', narration: 'Dùng rất đơn giản, chỉ vài bước là xong.', prompt: null },
-        { role: 'cta', narration: 'Link mua mình để ở phần mô tả nhé.', prompt: null },
-      ],
+      scenes: stubRoles(req.system).map((role) => ({
+        role,
+        narration: stubNarration(role, productName),
+        prompt: STUB_AI_IMAGE_ROLES.has(role) ? `product photo for ${role} scene, vertical 9:16, soft light` : null,
+      })),
     };
     return { value: JSON.stringify(script), units: 0 };
   }

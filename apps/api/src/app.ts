@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import sensible from '@fastify/sensible';
-import type { AppConfig, Db, DbHandle, DefaultContext, Logger, Storage, TemporalClient } from '@affilio/core';
+import type { AppConfig, Db, DbHandle, DefaultContext, Logger, ProviderSet, Storage, TemporalClient } from '@affilio/core';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { healthRoutes } from '#src/routes/health.ts';
+import { mediaRoutes } from '#src/routes/media.ts';
+import { productImageRoutes } from '#src/routes/product-images.ts';
 import { productRoutes } from '#src/routes/products.ts';
+import { templateRoutes } from '#src/routes/templates.ts';
 import { videoRoutes } from '#src/routes/videos.ts';
 import { AppError, formatZodIssues } from '#src/shared.ts';
 
@@ -19,6 +22,8 @@ export interface AppDeps {
   handle: DbHandle;
   config: AppConfig;
   storage: Storage;
+  /** LLM/ảnh: API gọi trực tiếp cho bước gợi ý kịch bản (worker vẫn dùng bản của nó). */
+  providers: ProviderSet;
   /** Start workflow (viết nháp, render) trên Temporal. */
   temporal: TemporalClient;
   /**
@@ -87,7 +92,10 @@ export async function buildApp(deps: AppDeps, logger: Logger): Promise<FastifyIn
   app.setNotFoundHandler((req, reply) => reply.status(404).send({ error: 'Not Found', message: `Không có ${req.method} ${req.url}` }));
 
   await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(mediaRoutes, { prefix: '/api' });
   await app.register(productRoutes, { prefix: '/api/products' });
+  await app.register(productImageRoutes, { prefix: '/api/products' });
+  await app.register(templateRoutes, { prefix: '/api/templates' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
   return app;
 }

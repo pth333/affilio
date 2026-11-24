@@ -6,6 +6,7 @@ import {
   reviseSceneSchema,
   reviewVideoSchema,
   sceneParamsSchema,
+  suggestVideoScriptSchema,
   updateSceneSchema,
   videoListQuerySchema,
 } from '#src/schemas.ts';
@@ -17,6 +18,7 @@ import {
   listVideoPage,
   requestVideoSceneRevision,
   submitReview,
+  suggestVideoScript,
 } from '#src/services/video.service.ts';
 import { validate } from '#src/shared.ts';
 
@@ -41,11 +43,28 @@ export const videoController = {
   },
 
   async create(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const { productId } = validate(createVideoSchema, req.body);
+    const body = validate(createVideoSchema, req.body);
     const { db, temporal, session } = req.server.deps;
-    const created = await createDraftVideo(db, temporal, { workspaceId: session.workspaceId, userId: session.userId, productId });
-    req.log.info({ videoId: created.video.id, workflowId: created.workflowId }, 'đã start workflow viết nháp');
+    const created = await createDraftVideo(db, temporal, {
+      workspaceId: session.workspaceId,
+      userId: session.userId,
+      productId: body.productId,
+      templateId: body.templateId,
+      spec: body.spec,
+    });
+    req.log.info(
+      { videoId: created.video.id, workflowId: created.workflowId, approvedScript: Boolean(body.spec) },
+      'đã start workflow cho video',
+    );
     return reply.status(202).send(created);
+  },
+
+  /** AI gợi ý kịch bản theo template; chưa tạo video để người dùng sửa trước. */
+  async suggest(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const body = validate(suggestVideoScriptSchema, req.body);
+    const { db, providers, session } = req.server.deps;
+    const suggestion = await suggestVideoScript(db, providers, { workspaceId: session.workspaceId, ...body });
+    return reply.send(suggestion);
   },
 
   async review(req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

@@ -24,6 +24,17 @@ export async function listProducts(db: Executor, { workspaceId, limit, cursor }:
     .limit(limit + 1);
 }
 
+export async function findProduct(
+  db: Executor,
+  { workspaceId, productId }: { workspaceId: string; productId: string },
+): Promise<Product | undefined> {
+  const [row] = await db
+    .select()
+    .from(product)
+    .where(and(eq(product.id, productId), eq(product.workspaceId, workspaceId), isNull(product.archivedAt)));
+  return row;
+}
+
 export interface NewProductInput {
   workspaceId: string;
   name: string;

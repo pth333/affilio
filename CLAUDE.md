@@ -1,1 +1,2 @@
 - Tất cả những hàm có khả năng sẽ tái sử dụng trong tương lai hãy viết trong vào 1 file
+- Chỉ được làm trong phạm vi yêu cầu

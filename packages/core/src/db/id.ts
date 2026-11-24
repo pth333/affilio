@@ -5,6 +5,7 @@ export const ID_PREFIX = {
   workspace: 'ws',
   user: 'u',
   product: 'p',
+  productImage: 'pimg',
   asset: 'a',
   video: 'vid',
   videoVersion: 'vv',

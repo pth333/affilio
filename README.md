@@ -29,6 +29,18 @@ Một request đi lần lượt: **route → controller → service → reposito
 
 `src/schemas.ts` gom toàn bộ schema Zod cho dữ liệu đầu vào (params, query phân trang, body) và type suy ra từ chúng. `src/shared.ts` gom các hàm dùng lại được: `AppError` + các hàm dựng lỗi (`badRequest`, `notFound`, `conflict`), `validate()` và phân trang `toPage()`.
 
+### Luồng tạo video (AI gợi ý kịch bản → người duyệt → mới tạo video)
+
+Trước đây bấm "Tạo video" là AI viết kịch bản ngay bên trong workflow, người dùng không xem/sửa được trước khi dựng preview. Luồng hiện tại tách bước gợi ý ra ngoài:
+
+1. `GET /api/templates` — danh sách định dạng (bảng `template`: thứ tự cảnh, giọng điệu, giọng đọc).
+2. `POST /api/videos/script` `{ productId, templateId }` — server ghép prompt từ template + sản phẩm, gọi LLM, trả `{ spec, rules, template }`. **Chưa tạo video**, chỉ ghi log/hạn mức AI.
+3. Người dùng sửa lời thoại từng cảnh ngay trên popup (hoặc bỏ qua nếu đã ưng).
+4. `POST /api/videos` `{ productId, templateId, spec }` — tạo video, lưu `spec` thành `video_version` đầu tiên (`template_id/template_version` ghi vào video) rồi start workflow.
+5. Workflow `videoDraftWorkflow` thấy `spec` trong input thì **bỏ bước gọi AI**: chỉ kiểm luật cứng → render preview → `pending_review` để duyệt như cũ.
+
+Bỏ `spec` thì API vẫn chạy luồng cũ (AI viết trong workflow) — CLI `pnpm cli draft <productId>` dùng đường này.
+
 ## Chạy dev
 
 Cần Node 24, pnpm, Docker. ffmpeg cần cho render thật (hiện render đang là stub).
@@ -41,17 +53,39 @@ pnpm db:migrate               # migration + seed workspace/user mặc định
 pnpm dev                      # API + web + worker, Ctrl+C dừng cả 3
 ```
 
-`pnpm dev` (hoặc `make dev`) chạy đồng thời 3 service với log gộp, tiền tố `[api] [web] [worker]`:
+`pnpm dev` (hoặc `make dev`) làm 3 việc, Ctrl+C dừng 3 service của app:
+
+1. bật **toàn bộ hạ tầng** bằng Docker (`deploy/docker-compose.dev.yml`): Postgres 16 (:5432), Temporal server (:7233) và Temporal UI (:8233);
+2. chờ Postgres healthy, Temporal mở cổng rồi chạy migration (idempotent — bảng đã có thì bỏ qua);
+3. chạy đồng thời API, web và worker với log gộp, tiền tố `[api] [web] [worker]`.
+
+Hạ tầng Docker **không** bị tắt khi thoát (giữ dữ liệu, giữ workflow Temporal) — tắt bằng `make db-down`.
+
+| Cờ của `scripts/dev-all.mjs` | Tác dụng |
+|---|---|
+| `node scripts/dev-all.mjs --no-infra` | không đụng Docker (khi hạ tầng đã chạy sẵn, ví dụ DB ở máy khác) |
+| `node scripts/dev-all.mjs --no-migrate` | bật hạ tầng nhưng bỏ bước migration |
+| `node scripts/dev-all.mjs --infra-only` (hoặc `make infra`) | chỉ bật hạ tầng + migrate rồi thoát |
 
 | Service | Địa chỉ |
 |---|---|
 | API | http://127.0.0.1:3100 |
 | Web | http://localhost:3001 (proxy `/api` → API) |
 | Worker | hàng đợi `llm` / `render` |
+| Temporal UI | http://localhost:8233 (server gRPC: `localhost:7233`) |
 
 Muốn chạy riêng từng service: `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker` (hoặc `make api`, `make web`, `make worker`). Các lệnh khác xem ở `make help`.
 
 > API dev dùng cổng **3100** để tránh đụng các dự án khác hay dùng 3000. Trong container vẫn là 3000.
+
+### Temporal
+
+Dự án **chưa** dùng Temporal — pipeline đang chạy bằng hàng đợi job tự viết trên Postgres (`jobs` + `SELECT … FOR UPDATE SKIP LOCKED`, heartbeat/retry; xem `packages/core/src/queue`). Hai service `temporal` + `temporal-ui` trong compose dev được bật cùng `make dev` để dựng sẵn và thử nghiệm:
+
+- Server dùng chung Postgres dev; `auto-setup` tự tạo database `temporal`, `temporal_visibility` và namespace `default` (lần đầu mất ~30–60s).
+- `make dev` chờ Temporal mở cổng trước khi chạy app; nếu Temporal chậm, app vẫn khởi động và chỉ in cảnh báo.
+- Worker/client chạy ở máy host nối tới `localhost:7233`; UI ở http://localhost:8233.
+- Image `temporalio/auto-setup` **chỉ dùng cho dev**; khi đưa lên production thì dùng `temporalio/server` + bước setup schema riêng (hoặc Temporal Cloud).
 
 CLI:
 

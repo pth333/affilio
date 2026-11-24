@@ -1,4 +1,4 @@
-import { createDb, createLogger, createStorage, createTemporalClient, ensureDefaultWorkspace, loadConfig, runMigrations } from '@affilio/core';
+import { createDb, createLogger, createProviders, createStorage, createTemporalClient, ensureDefaultWorkspace, loadConfig, runMigrations } from '@affilio/core';
 import { buildApp } from '#src/app.ts';
 
 const config = loadConfig();
@@ -12,7 +12,18 @@ async function main(): Promise<void> {
   }
   const session = await ensureDefaultWorkspace(handle.db, { workspaceName: config.SEED_WORKSPACE_NAME, userEmail: config.SEED_USER_EMAIL });
   const temporal = await createTemporalClient(config);
-  const app = await buildApp({ db: handle.db, handle, config, storage: createStorage(config), session, temporal: temporal.client }, logger);
+  const app = await buildApp(
+    {
+      db: handle.db,
+      handle,
+      config,
+      storage: createStorage(config),
+      providers: createProviders(config),
+      session,
+      temporal: temporal.client,
+    },
+    logger,
+  );
 
   let closing = false;
   const shutdown = async (signal: string): Promise<void> => {

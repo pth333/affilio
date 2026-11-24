@@ -117,6 +117,43 @@ export interface VideoFormat {
   glyph: string;
 }
 
+/** Template lấy từ API: định dạng kịch bản (thứ tự cảnh, giọng điệu, giọng đọc). */
+export interface ScriptTemplate {
+  id: string;
+  version: number;
+  name: string;
+  content: {
+    scenes: { role: string; brief?: string }[];
+    tone: string;
+    voice: { provider: string; name: string };
+    maxSentencesPerScene: number;
+  };
+}
+
+/** Kết quả kiểm luật cứng của một kịch bản. */
+export interface RuleCheck {
+  rule: string;
+  passed: boolean;
+  message?: string;
+}
+
+/** Spec kịch bản: gửi nguyên lại cho server khi tạo video sau khi người dùng sửa. */
+export interface ScriptSpec {
+  schema: number;
+  product_id: string;
+  template: { id: string; version: number };
+  cta: { enabled: boolean };
+  music: { asset_id: string; volume: number } | null;
+  scenes: Scene[];
+}
+
+/** AI gợi ý kịch bản theo template — chưa tạo video, chờ người dùng duyệt. */
+export interface ScriptSuggestion {
+  spec: ScriptSpec;
+  rules: RuleCheck[];
+  template: { id: string; version: number; name: string };
+}
+
 export interface DraftScene {
   role: 'Mở đầu' | 'Thông tin' | 'Trải nghiệm' | 'Kêu gọi';
   start: number;

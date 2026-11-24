@@ -1,10 +1,11 @@
 # Affilio — lệnh nhanh cho môi trường dev.
-# Mặc định `make` = chạy đồng thời API, web và worker (Ctrl+C dừng cả 3).
+# Mặc định `make` = bật toàn bộ hạ tầng Docker (Postgres + Temporal + Temporal UI)
+# rồi chạy đồng thời API, web và worker (Ctrl+C dừng 3 service của app).
 
 .DEFAULT_GOAL := dev
-.PHONY: dev api web worker install db-up db-down db-migrate check test build help
+.PHONY: dev api web worker install db-up db-down infra db-migrate check test build help
 
-dev: ## Chạy api (3100) + web (3001) + worker
+dev: ## Bật hạ tầng Docker (Postgres + Temporal + UI), migrate, rồi chạy api (3100) + web (3001) + worker
 	pnpm dev
 
 api: ## Chỉ chạy API
@@ -19,11 +20,14 @@ worker: ## Chỉ chạy worker
 install: ## Cài dependency toàn workspace
 	pnpm install
 
-db-up: ## Bật Postgres dev bằng Docker
+db-up: ## Chỉ bật Postgres dev bằng Docker
 	pnpm db:up
 
-db-down: ## Tắt Postgres dev
+db-down: ## Tắt hạ tầng dev (Postgres + Temporal + UI), giữ dữ liệu
 	pnpm db:down
+
+infra: ## Chỉ bật hạ tầng Docker + migrate rồi thoát
+	node scripts/dev-all.mjs --infra-only
 
 db-migrate: ## Chạy migration + seed
 	pnpm db:migrate
@@ -37,13 +41,14 @@ build: ## Build web
 	pnpm build
 
 help: ## In danh sách lệnh
-	@echo dev        - chay api + web + worker (Ctrl+C de dung)
+	@echo dev        - bat ha tang Docker (Postgres + Temporal + UI) + api + web + worker
 	@echo api        - chi chay API
 	@echo web        - chi chay web
 	@echo worker     - chi chay worker
 	@echo install    - cai dependency
-	@echo db-up      - bat Postgres dev (Docker)
-	@echo db-down    - tat Postgres dev
+	@echo db-up      - chi bat Postgres dev (Docker)
+	@echo db-down    - tat ha tang dev (Postgres + Temporal + UI)
+	@echo infra      - chi bat ha tang Docker + migrate roi thoat
 	@echo db-migrate - chay migration + seed
 	@echo check      - typecheck + lint + test
 	@echo build      - build web

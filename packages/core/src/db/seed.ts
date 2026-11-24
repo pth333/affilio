@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '#src/db/index.ts';
 import { newId } from '#src/db/id.ts';
 import { appUser, membership, workspace } from '#src/db/schema.ts';
+import { seedDefaultTemplates } from '#src/template/index.ts';
 
 export interface DefaultContext {
   workspaceId: string;
@@ -17,7 +18,7 @@ export async function ensureDefaultWorkspace(
   { workspaceName, userEmail }: { workspaceName: string; userEmail: string },
 ): Promise<DefaultContext> {
   const email = userEmail.toLowerCase();
-  return db.transaction(async (tx) => {
+  const context = await db.transaction(async (tx) => {
     await tx.insert(appUser).values({ id: newId('user'), email }).onConflictDoNothing({ target: appUser.email });
     const [user] = await tx.select({ id: appUser.id }).from(appUser).where(eq(appUser.email, email));
     if (!user) throw new Error(`Không tạo được user mặc định ${email}`);
@@ -34,4 +35,8 @@ export async function ensureDefaultWorkspace(
     await tx.insert(membership).values({ workspaceId, userId: user.id, role: 'owner' });
     return { workspaceId, userId: user.id };
   });
+
+  // Template hệ thống dùng chung (workspace_id null) để màn tạo video luôn có định dạng để chọn.
+  await seedDefaultTemplates(db);
+  return context;
 }

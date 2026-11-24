@@ -39,8 +39,18 @@ export type CreateProductInput = z.infer<typeof createProductSchema>;
 export const videoListQuerySchema = pageQuerySchema.extend({ status: z.enum(VIDEO_STATUSES).optional() });
 export type VideoListQuery = z.infer<typeof videoListQuerySchema>;
 
-export const createVideoSchema = z.object({ productId: idSchema });
+export const createVideoSchema = z.object({
+  productId: idSchema,
+  /** Định dạng kịch bản (template); bỏ trống = template mặc định. */
+  templateId: idSchema.optional(),
+  /** Kịch bản người dùng đã duyệt (VideoSpec); có thì workflow không gọi AI. */
+  spec: z.unknown().optional(),
+});
 export type CreateVideoInput = z.infer<typeof createVideoSchema>;
+
+/** Gợi ý kịch bản trước khi tạo video: chỉ cần sản phẩm + template. */
+export const suggestVideoScriptSchema = z.object({ productId: idSchema, templateId: idSchema });
+export type SuggestVideoScriptInput = z.infer<typeof suggestVideoScriptSchema>;
 
 /** `versionId` là bản người duyệt đang xem; service từ chối nếu đã có bản mới hơn. */
 export const reviewVideoSchema = z.object({
@@ -55,6 +65,26 @@ export const addReviewNoteSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 export type AddReviewNoteInput = z.infer<typeof addReviewNoteSchema>;
+
+// ───────────────────────── Ảnh sản phẩm ─────────────────────────
+
+/** Data URL base64 do trình duyệt tạo từ File; chỉ nhận png/jpeg/webp. */
+export const uploadProductImageSchema = z.object({
+  dataUrl: z
+    .string()
+    .max(8_000_000, 'Ảnh tối đa 5 MB')
+    .regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, 'Ảnh phải là data URL base64 (png, jpeg hoặc webp)'),
+  alt: z.string().trim().max(200).optional(),
+  /** Bỏ trống: ảnh đầu tiên của sản phẩm tự thành ảnh chính. */
+  isPrimary: z.boolean().optional(),
+});
+export type UploadProductImageInput = z.infer<typeof uploadProductImageSchema>;
+
+export const productImageParamsSchema = z.object({ id: idSchema, imageId: idSchema });
+
+/** Khóa tệp trên đường dẫn `/api/media/*` (chứa dấu `/` nên dùng wildcard). */
+export const mediaParamsSchema = z.object({ '*': z.string().min(1).max(1024) });
+
 
 /** Người duyệt sửa tay lời thoại của một cảnh (tạo phiên bản mới). */
 export const updateSceneSchema = z.object({
