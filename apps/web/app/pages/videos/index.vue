@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Danh sách video từ API thật (/api/videos). Video mới được tạo từ popup chọn kênh + sản phẩm + định dạng.
+// Danh sách video từ API thật (/api/videos). Video mới được tạo từ kịch bản (CreateVideoDialog).
 // Bảng dùng UTable (Nuxt UI) với giao diện chung ở utils/helpers.ts (TABLE_UI).
 // Lỗi request đã được http interceptor báo bằng message.error.
 import type { TableColumn } from '@nuxt/ui';
@@ -64,7 +64,7 @@ onBeforeUnmount(() => clearInterval(timer));
 <template>
   <PageHeader
     title="Video"
-    description="Tạo video nháp từ thư viện sản phẩm và theo dõi trạng thái xử lý của từng bản."
+    description="Tạo video từ kịch bản có sẵn (hoặc giao AI viết mới) và theo dõi trạng thái xử lý của từng bản."
   >
     <template #actions>
       <button class="btn btn-primary" @click="showCreateDialog = true">
@@ -104,6 +104,7 @@ onBeforeUnmount(() => clearInterval(timer));
             <NuxtLink :to="{ path: '/review', query: { video: row.original.id } }" class="font-medium hover:text-primary">
               {{ row.original.productName }}
             </NuxtLink>
+            <div v-if="row.original.scriptId" class="text-[0.8rem] text-primary">Từ kịch bản</div>
             <div class="text-[0.8rem] text-muted">{{ row.original.id }}</div>
             <div v-if="row.original.failedReason" class="text-[0.85rem] text-bad">{{ row.original.failedReason }}</div>
           </div>
@@ -131,7 +132,7 @@ onBeforeUnmount(() => clearInterval(timer));
           </span>
           <div>
             <p class="font-semibold text-fg">Chưa có video nào ở đây</p>
-            <p class="mt-1 text-[0.9rem] text-muted">Chọn sản phẩm và định dạng để AI viết những bản nháp đầu tiên.</p>
+            <p class="mt-1 text-[0.9rem] text-muted">Chọn kịch bản có sẵn, hoặc giao AI viết kịch bản mới cho sản phẩm.</p>
           </div>
           <button class="btn btn-primary btn-sm" @click="showCreateDialog = true">
             <AppIcon name="sparkles" :size="15" /> Tạo video

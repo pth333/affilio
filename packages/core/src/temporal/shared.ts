@@ -1,5 +1,3 @@
-import type { VideoSpec } from '#src/spec/schema.ts';
-
 /**
  * Hằng số + kiểu dùng chung giữa API/CLI (start workflow) và worker (workflow + activity).
  * File này KHÔNG được import gì có side effect / Node API: nó bị bundle vào sandbox workflow.
@@ -17,13 +15,23 @@ export const WORKFLOW_TYPES = {
   draft: 'videoDraftWorkflow',
   renderFinal: 'videoRenderFinalWorkflow',
   revise: 'videoReviseWorkflow',
+  scriptWrite: 'scriptWriteWorkflow',
 } as const;
 
 export interface VideoDraftInput {
   workspaceId: string;
   videoId: string;
-  /** Kịch bản người dùng đã duyệt ở bước gợi ý; có thì activity bỏ bước gọi AI. */
-  spec?: VideoSpec;
+  /**
+   * Phiên bản video đã có sẵn spec (video tạo từ kịch bản).
+   * Có thì activity dùng spec của phiên bản này, không gọi AI và không tạo phiên bản mới.
+   */
+  versionId?: string;
+}
+
+/** AI viết (hoặc viết lại) một kịch bản trong thư viện kịch bản. */
+export interface ScriptWriteInput {
+  workspaceId: string;
+  scriptId: string;
 }
 
 export interface VideoRenderFinalInput {
@@ -48,6 +56,14 @@ export function draftWorkflowId(videoId: string): string {
 
 export function renderFinalWorkflowId(versionId: string): string {
   return `video.render_final:${versionId}`;
+}
+
+/**
+ * Mỗi lần viết kịch bản gắn với phiên bản đang có (`initial` khi chưa có):
+ * bấm trùng thì dùng lại workflow, còn "AI viết lại" từ bản mới thì ra ID mới.
+ */
+export function scriptWriteWorkflowId(scriptId: string, fromVersionId: string | null): string {
+  return `script.write:${scriptId}:${fromVersionId ?? 'initial'}`;
 }
 
 export function reviseWorkflowId(versionId: string, sceneId: string): string {

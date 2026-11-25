@@ -7,6 +7,7 @@ import { healthRoutes } from '#src/routes/health.ts';
 import { mediaRoutes } from '#src/routes/media.ts';
 import { productImageRoutes } from '#src/routes/product-images.ts';
 import { productRoutes } from '#src/routes/products.ts';
+import { scriptRoutes } from '#src/routes/scripts.ts';
 import { templateRoutes } from '#src/routes/templates.ts';
 import { videoRoutes } from '#src/routes/videos.ts';
 import { AppError, formatZodIssues } from '#src/shared.ts';
@@ -96,6 +97,7 @@ export async function buildApp(deps: AppDeps, logger: Logger): Promise<FastifyIn
   await app.register(productRoutes, { prefix: '/api/products' });
   await app.register(productImageRoutes, { prefix: '/api/products' });
   await app.register(templateRoutes, { prefix: '/api/templates' });
+  await app.register(scriptRoutes, { prefix: '/api/scripts' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
   return app;
 }

@@ -5,8 +5,6 @@ import { videoController } from '#src/controllers/video.controller.ts';
 export const videoRoutes: FastifyPluginAsync = async (app) => {
   app.get('/', videoController.list);
   app.get('/:id', videoController.detail);
-  // Gợi ý kịch bản (chưa tạo video) — khai báo trước '/:id' để không bị hiểu là id video.
-  app.post('/script', videoController.suggest);
   app.post('/', videoController.create);
   app.post('/:id/review', videoController.review);
   app.post('/:id/notes', videoController.addNote);

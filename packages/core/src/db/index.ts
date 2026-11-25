@@ -6,7 +6,7 @@ import * as schema from '#src/db/schema.ts';
 
 export * from '#src/db/schema.ts';
 // Re-export operator để app dùng cùng bản drizzle với core.
-export { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+export { and, asc, count, desc, eq, gt, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 export { newId, ID_PREFIX, type IdKind } from '#src/db/id.ts';
 export { ensureDefaultWorkspace, type DefaultContext } from '#src/db/seed.ts';
 

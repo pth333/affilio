@@ -8,3 +8,4 @@ export * from '#src/providers/index.ts';
 export * from '#src/storage/index.ts';
 export * from '#src/render/index.ts';
 export * from '#src/video/index.ts';
+export * from '#src/script/index.ts';

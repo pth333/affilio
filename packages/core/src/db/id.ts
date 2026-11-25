@@ -9,6 +9,8 @@ export const ID_PREFIX = {
   asset: 'a',
   video: 'vid',
   videoVersion: 'vv',
+  script: 'scr',
+  scriptVersion: 'sv',
   videoCheck: 'chk',
   review: 'rv',
   reviewNote: 'rn',

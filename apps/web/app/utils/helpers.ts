@@ -1,6 +1,6 @@
 // Các hàm dùng lại nhiều nơi — gom vào một file (quy ước repo). Nuxt tự import, không cần `import`.
 import axios from 'axios';
-import type { Channel, LibraryProduct, ProductSuggestion, Scene, SuggestionReason } from '~/types';
+import type { Channel, LibraryProduct, ProductSuggestion, Scene, ScriptListItem, ScriptTemplate, SuggestionReason } from '~/types';
 
 const LOCALE = 'vi-VN';
 
@@ -177,6 +177,24 @@ export const CHECK_RULE_LABEL: Record<string, string> = {
   mascot_within_scene: 'Mascot trong cảnh',
   ai_clip_limit: 'Giới hạn clip AI',
 };
+
+/** Luật thuộc về dữ liệu sản phẩm (link, ảnh): sửa lời thoại không qua được, phải bổ sung ở trang Sản phẩm. */
+export const PRODUCT_DATA_RULES: readonly string[] = ['affiliate_link', 'product_image_owner'];
+
+// ───────────── Kịch bản ─────────────
+
+/** Khớp `SCRIPT_NARRATION_MAX` bên @affilio/core. */
+export const SCRIPT_NARRATION_MAX = 400;
+
+/** Tóm tắt định dạng: Mở đầu → Vấn đề → Lợi ích → Kêu gọi. */
+export function templateOutline(template: Pick<ScriptTemplate, 'content'>): string {
+  return template.content.scenes.map((scene) => SCENE_ROLE_LABEL[scene.role] ?? scene.role).join(' → ');
+}
+
+/** Kịch bản AI vừa viết, chưa ai sửa hay dùng tạo video → gắn nhãn "Mới" để người dùng biết cần xem. */
+export function isNewScript(item: Pick<ScriptListItem, 'origin' | 'status' | 'currentSource' | 'videoCount'>): boolean {
+  return item.origin === 'ai' && item.status === 'ready' && item.currentSource === 'ai_draft' && item.videoCount === 0;
+}
 
 /** Nhãn lịch sử duyệt. */
 export const REVIEW_DECISION_LABEL: Record<string, string> = {

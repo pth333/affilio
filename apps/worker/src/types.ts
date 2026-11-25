@@ -15,6 +15,12 @@ export type DraftResult =
   | { kind: 'deferred'; retryAt: string }
   | { kind: 'drafted'; versionId: string; passed: boolean };
 
+/** Kết quả activity AI viết kịch bản (thư viện kịch bản) — xong thì kịch bản sang `ready`. */
+export type ScriptResult =
+  | { kind: 'skipped'; reason: string }
+  | { kind: 'deferred'; retryAt: string }
+  | { kind: 'scripted'; versionId: string };
+
 /** Kết quả activity AI sửa cảnh — cùng cách xử lý hạn mức như viết nháp. */
 export type ReviseResult =
   | { kind: 'skipped'; reason: string }
@@ -27,6 +33,11 @@ export interface RenderPreviewInput {
   workspaceId: string;
   videoId: string;
   versionId: string;
+}
+
+export interface MarkScriptFailedInput {
+  scriptId: string;
+  reason: string;
 }
 
 export interface MarkFailedInput {

@@ -1,4 +1,4 @@
-import { REVIEW_DECISIONS, VIDEO_STATUSES } from '@affilio/core';
+import { REVIEW_DECISIONS, SCRIPT_NARRATION_MAX, SCRIPT_STATUSES, VIDEO_STATUSES } from '@affilio/core';
 import { z } from 'zod';
 
 /**
@@ -43,14 +43,8 @@ export const createVideoSchema = z.object({
   productId: idSchema,
   /** Định dạng kịch bản (template); bỏ trống = template mặc định. */
   templateId: idSchema.optional(),
-  /** Kịch bản người dùng đã duyệt (VideoSpec); có thì workflow không gọi AI. */
-  spec: z.unknown().optional(),
 });
 export type CreateVideoInput = z.infer<typeof createVideoSchema>;
-
-/** Gợi ý kịch bản trước khi tạo video: chỉ cần sản phẩm + template. */
-export const suggestVideoScriptSchema = z.object({ productId: idSchema, templateId: idSchema });
-export type SuggestVideoScriptInput = z.infer<typeof suggestVideoScriptSchema>;
 
 /** `versionId` là bản người duyệt đang xem; service từ chối nếu đã có bản mới hơn. */
 export const reviewVideoSchema = z.object({
@@ -65,6 +59,47 @@ export const addReviewNoteSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 export type AddReviewNoteInput = z.infer<typeof addReviewNoteSchema>;
+
+// ───────────────────────── Kịch bản ─────────────────────────
+
+export const scriptListQuerySchema = pageQuerySchema.extend({
+  status: z.enum(SCRIPT_STATUSES).optional(),
+  productId: idSchema.optional(),
+  /** Tìm theo tên sản phẩm. */
+  q: z.string().trim().max(200).optional(),
+});
+export type ScriptListQuery = z.infer<typeof scriptListQuerySchema>;
+
+/** Lời thoại theo đúng thứ tự cảnh (hình ảnh tự gán, không sửa ở đây). */
+const narrationScenesSchema = z
+  .array(z.object({ narration: z.string().trim().min(1).max(SCRIPT_NARRATION_MAX) }))
+  .min(1)
+  .max(20);
+
+/** Giao worker AI viết kịch bản cho nhiều sản phẩm (mỗi sản phẩm một kịch bản). */
+export const createAiScriptsSchema = z.object({
+  productIds: z.array(idSchema).min(1).max(20),
+  templateId: idSchema,
+});
+export type CreateAiScriptsInput = z.infer<typeof createAiScriptsSchema>;
+
+/** Người dùng tự viết kịch bản. */
+export const createManualScriptSchema = z.object({
+  productId: idSchema,
+  templateId: idSchema,
+  scenes: narrationScenesSchema,
+});
+export type CreateManualScriptInput = z.infer<typeof createManualScriptSchema>;
+
+/** Sửa lời thoại: `versionId` là bản đang xem, lệch bản hiện tại → 409. */
+export const updateScriptSchema = z.object({
+  versionId: idSchema,
+  scenes: narrationScenesSchema,
+});
+export type UpdateScriptInput = z.infer<typeof updateScriptSchema>;
+
+/** Tạo video từ đúng phiên bản kịch bản người dùng đang xem. */
+export const createVideoFromScriptSchema = z.object({ versionId: idSchema });
 
 // ───────────────────────── Ảnh sản phẩm ─────────────────────────
 

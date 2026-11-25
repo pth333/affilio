@@ -7,26 +7,40 @@ import {
   callProvider,
   canFinalRender,
   checkHardRules,
+  createScriptVersion,
   createVersion,
   eq,
   extractJson,
+  loadScript,
+  markScriptFailed,
   markVideoFailed,
   newId,
   product,
   productImageIds,
   templateContentFor,
+  transitionScript,
   transitionVideo,
-  validateSpec,
   video,
   videoCheck,
   videoVersion,
+  type ScriptWriteInput,
+  type TemplateContent,
   type VideoDraftInput,
   type VideoRenderFinalInput,
   type VideoReviseInput,
   type VideoSpec,
 } from '@affilio/core';
 import { z } from 'zod';
-import type { DraftResult, MarkFailedInput, RenderPreviewInput, RenderResult, ReviseResult, WorkerDeps } from '#src/types.ts';
+import type {
+  DraftResult,
+  MarkFailedInput,
+  MarkScriptFailedInput,
+  RenderPreviewInput,
+  RenderResult,
+  ReviseResult,
+  ScriptResult,
+  WorkerDeps,
+} from '#src/types.ts';
 
 const REVISE_SYSTEM_PROMPT = [
   'Bạn viết lại đúng MỘT cảnh trong kịch bản video ngắn bán hàng affiliate tiếng Việt.',
@@ -58,10 +72,112 @@ export function createActivities(deps: WorkerDeps) {
     return deps.logger.child({ workflowId: info.workflowExecution?.workflowId, activity: info.activityType, attempt: info.attempt });
   }
 
+  /**
+   * Gọi AI viết kịch bản theo template rồi ghép thành spec hợp lệ.
+   * Hết hạn mức ngày → trả `deferred` để workflow ngủ tới lúc reset; kịch bản hỏng → ném lỗi để Temporal thử lại.
+   */
+  async function generateSpec(input: {
+    workspaceId: string;
+    /** Có khi AI viết thẳng cho video (CLI); viết kịch bản thì không gắn video. */
+    videoId?: string | undefined;
+    product: { id: string; name: string; description: string | null; category: string | null };
+    template: { id: string; version: number } | undefined;
+    content: TemplateContent;
+    images: readonly string[];
+  }): Promise<{ kind: 'deferred'; retryAt: string } | { kind: 'spec'; spec: VideoSpec }> {
+    const ctx = Context.current();
+    const { content } = input;
+    const request = { system: buildDraftSystemPrompt(content), prompt: buildDraftPrompt(input.product), maxTokens: 800 };
+    const llm = providers.llm;
+    const outcome = await callProvider(
+      db,
+      {
+        workspaceId: input.workspaceId,
+        purpose: 'script',
+        provider: llm.provider,
+        model: llm.model,
+        estUnits: llm.estimateUnits(request),
+        dailyLimit: providers.dailyLimits[llm.provider],
+        jobId: ctx.info.workflowExecution?.workflowId ?? ctx.info.activityId,
+        ...(input.videoId ? { videoId: input.videoId } : {}),
+        prompt: request.prompt,
+      },
+      () => llm.complete(request, ctx.cancellationSignal),
+      (text) => text,
+    );
+    if (!outcome.ok) {
+      activityLog().warn({ retryAt: outcome.retryAt }, 'hết hạn mức AI trong ngày, dời lại');
+      return { kind: 'deferred', retryAt: outcome.retryAt.toISOString() };
+    }
+
+    const built = buildDraftSpec({
+      llmText: outcome.value,
+      productId: input.product.id,
+      productImageIds: input.images,
+      voice: content.voice,
+      roles: content.scenes.map((scene) => scene.role),
+      ...(input.template ? { template: input.template } : {}),
+    });
+    if (!built.ok) throw new Error(`kịch bản LLM không hợp lệ: ${built.errors.join('; ')}`);
+    return { kind: 'spec', spec: built.value };
+  }
+
   return {
-    /** queued → drafting → auto_check → previewing | rejected_auto (mục 4 plan v4). */
-    async draftVideo({ workspaceId, videoId, spec: providedSpec }: VideoDraftInput): Promise<DraftResult> {
-      const ctx = Context.current();
+    /**
+     * AI viết (hoặc viết lại) một kịch bản trong thư viện: writing → ready, ghi `script_version` kèm kết quả kiểm luật.
+     * Không tạo video; người dùng xem/sửa rồi bấm "Tạo video" khi muốn.
+     */
+    async draftScript({ workspaceId, scriptId }: ScriptWriteInput): Promise<ScriptResult> {
+      const log = activityLog();
+      const found = await loadScript(db, workspaceId, scriptId);
+      if (!found) return { kind: 'skipped', reason: 'kịch bản không còn tồn tại' };
+      const { script } = found;
+
+      // Lần thử trước đã commit xong nhưng chết trước khi báo về Temporal → trả lại đúng kết quả cũ.
+      // (Viết lại luôn chuyển về `writing` trước khi start, nên `ready` ở đây chỉ có thể là kết quả của lần này.)
+      if (script.status === 'ready' && script.currentVersionId) return { kind: 'scripted', versionId: script.currentVersionId };
+      if (script.status !== 'writing') return { kind: 'skipped', reason: `kịch bản đang ở trạng thái ${script.status}` };
+
+      const [p] = await db.select().from(product).where(eq(product.id, script.productId));
+      if (!p) return { kind: 'skipped', reason: 'sản phẩm không còn tồn tại' };
+
+      const content = await templateContentFor(db, workspaceId, script.templateId);
+      const images = await productImageIds(db, workspaceId, p.id);
+      const generated = await generateSpec({
+        workspaceId,
+        product: p,
+        template: script.templateId ? { id: script.templateId, version: script.templateVersion ?? 1 } : undefined,
+        content,
+        images,
+      });
+      if (generated.kind === 'deferred') return generated;
+      const spec = generated.spec;
+
+      // Luật cứng chỉ ghi nhận để người dùng thấy và sửa; chặn ở bước tạo video.
+      const rules = checkHardRules(spec, { affiliateUrl: p.affiliateUrl, productAssetIds: images });
+      const versionId = await db.transaction(async (tx) => {
+        const version = await createScriptVersion(tx, {
+          scriptId,
+          spec,
+          source: 'ai_draft',
+          rules,
+          parentVersionId: script.currentVersionId,
+          changeSummary: script.currentVersionId ? 'AI viết lại kịch bản' : 'kịch bản AI',
+        });
+        const moved = await transitionScript(tx, { scriptId, from: ['writing'], to: 'ready' });
+        if (!moved) throw new Error('trạng thái kịch bản vừa đổi trong lúc lưu');
+        return version.id;
+      });
+
+      log.info({ scriptId, versionId, failedRules: rules.filter((r) => !r.passed).map((r) => r.rule) }, 'AI đã viết xong kịch bản');
+      return { kind: 'scripted', versionId };
+    },
+
+    /**
+     * AI viết + dựng nháp (CLI): queued → drafting → auto_check → previewing | rejected_auto (mục 4 plan v4).
+     * Kịch bản người dùng đã xác nhận (`versionId`): video đã ở auto_check từ lúc confirm → previewing.
+     */
+    async draftVideo({ workspaceId, videoId, versionId: confirmedVersionId }: VideoDraftInput): Promise<DraftResult> {
       const log = activityLog();
       const [row] = await db
         .select({ video, product })
@@ -75,7 +191,9 @@ export function createActivities(deps: WorkerDeps) {
       if (done && (row.video.status === 'previewing' || row.video.status === 'rejected_auto')) {
         return { kind: 'drafted', versionId: done, passed: row.video.status === 'previewing' };
       }
-      if (row.video.status !== 'drafting') {
+      if (confirmedVersionId) {
+        if (row.video.status !== 'auto_check') return { kind: 'skipped', reason: `video đang ở trạng thái ${row.video.status}` };
+      } else if (row.video.status !== 'drafting') {
         const moved = await transitionVideo(db, { videoId, from: ['queued', 'failed'], to: 'drafting' });
         if (!moved) return { kind: 'skipped', reason: `video đang ở trạng thái ${row.video.status}` };
       }
@@ -83,68 +201,53 @@ export function createActivities(deps: WorkerDeps) {
       const content = await templateContentFor(db, workspaceId, row.video.templateId);
       const images = await productImageIds(db, workspaceId, row.product.id);
 
-      // Hai đường vào: người dùng đã duyệt kịch bản (spec có sẵn) hoặc AI viết mới hoàn toàn.
+      // Hai đường vào: phiên bản người dùng đã xác nhận, hoặc AI viết mới hoàn toàn (luồng CLI).
       let spec: VideoSpec;
-      if (providedSpec) {
-        const validated = validateSpec(providedSpec);
-        if (!validated.ok) throw new Error(`kịch bản đã duyệt không hợp lệ: ${validated.errors.join('; ')}`);
-        spec = validated.value;
-      } else {
-        const request = { system: buildDraftSystemPrompt(content), prompt: buildDraftPrompt(row.product), maxTokens: 800 };
-        const llm = providers.llm;
-        const outcome = await callProvider(
-          db,
-          {
-            workspaceId,
-            purpose: 'script',
-            provider: llm.provider,
-            model: llm.model,
-            estUnits: llm.estimateUnits(request),
-            dailyLimit: providers.dailyLimits[llm.provider],
-            jobId: ctx.info.workflowExecution?.workflowId ?? ctx.info.activityId,
-            videoId,
-            prompt: request.prompt,
-          },
-          () => llm.complete(request, ctx.cancellationSignal),
-          (text) => text,
-        );
-        if (!outcome.ok) {
-          log.warn({ retryAt: outcome.retryAt }, 'hết hạn mức AI trong ngày, dời lại');
-          return { kind: 'deferred', retryAt: outcome.retryAt.toISOString() };
+      if (confirmedVersionId) {
+        const [confirmed] = await db.select().from(videoVersion).where(eq(videoVersion.id, confirmedVersionId));
+        if (!confirmed || confirmed.videoId !== videoId) {
+          return { kind: 'skipped', reason: `không tìm thấy phiên bản ${confirmedVersionId} của video` };
         }
-
-        const built = buildDraftSpec({
-          llmText: outcome.value,
-          productId: row.product.id,
-          productImageIds: images,
-          voice: content.voice,
-          roles: content.scenes.map((scene) => scene.role),
+        spec = confirmed.spec;
+      } else {
+        const generated = await generateSpec({
+          workspaceId,
+          videoId,
+          product: row.product,
           template: row.video.templateId ? { id: row.video.templateId, version: row.video.templateVersion ?? 1 } : undefined,
+          content,
+          images,
         });
-        if (!built.ok) throw new Error(`kịch bản LLM không hợp lệ: ${built.errors.join('; ')}`);
-        spec = built.value;
+        if (generated.kind === 'deferred') return generated;
+        spec = generated.spec;
       }
 
       const rules = checkHardRules(spec, { affiliateUrl: row.product.affiliateUrl, productAssetIds: images });
       const passed = rules.every((rule) => rule.passed);
       // Kịch bản người dùng đã duyệt: chỉ ghi nhận luật cứng để họ thấy, không tự loại khỏi hộp duyệt.
-      const nextStatus = providedSpec || passed ? 'previewing' : 'rejected_auto';
+      const approved = Boolean(confirmedVersionId);
+      const nextStatus = approved || passed ? 'previewing' : 'rejected_auto';
 
       const versionId = await db.transaction(async (tx) => {
-        const version = await createVersion(tx, {
-          videoId,
-          spec,
-          source: 'ai_draft',
-          changeSummary: providedSpec ? 'kịch bản AI đã được người dùng duyệt' : 'bản nháp AI',
-        });
-        await transitionVideo(tx, { videoId, from: ['drafting'], to: 'auto_check' });
-        await tx.insert(videoCheck).values({ id: newId('videoCheck'), videoVersionId: version.id, rules, passed });
+        // Phiên bản đã xác nhận thì giữ nguyên, không sinh thêm phiên bản trùng nội dung.
+        let id = confirmedVersionId;
+        if (!id) {
+          const version = await createVersion(tx, {
+            videoId,
+            spec,
+            source: 'ai_draft',
+            changeSummary: 'bản nháp AI',
+          });
+          id = version.id;
+        }
+        if (!confirmedVersionId) await transitionVideo(tx, { videoId, from: ['drafting'], to: 'auto_check' });
+        await tx.insert(videoCheck).values({ id: newId('videoCheck'), videoVersionId: id, rules, passed });
         await transitionVideo(tx, { videoId, from: ['auto_check'], to: nextStatus });
-        return version.id;
+        return id;
       });
 
       log.info(
-        { versionId, passed, approved: Boolean(providedSpec), failedRules: rules.filter((r) => !r.passed).map((r) => r.rule) },
+        { versionId, passed, approved, failedRules: rules.filter((r) => !r.passed).map((r) => r.rule) },
         'đã lưu kịch bản',
       );
       return { kind: 'drafted', versionId, passed };
@@ -281,6 +384,11 @@ export function createActivities(deps: WorkerDeps) {
     },
 
     /** Workflow gọi khi activity đã hết lượt thử: đưa video về failed để người dùng thấy và làm lại. */
+    async markScriptFailed({ scriptId, reason }: MarkScriptFailedInput): Promise<void> {
+      await markScriptFailed(db, scriptId, reason);
+      activityLog().error({ scriptId, reason }, 'AI viết kịch bản thất bại');
+    },
+
     async markVideoFailed({ videoId, step, reason }: MarkFailedInput): Promise<void> {
       await markVideoFailed(db, videoId, step, reason);
       activityLog().error({ videoId, step, reason }, 'video thất bại');

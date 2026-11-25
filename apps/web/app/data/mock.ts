@@ -8,6 +8,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/review', label: 'Hộp thư duyệt', icon: 'inbox', count: 12 },
   { to: '/templates', label: 'Định dạng & mẫu', icon: 'layers' },
   { to: '/publishing', label: 'Đăng tải & hiệu quả', icon: 'chart-no-axes-combined' },
+  { to: '/scripts', label: 'Kịch bản', icon: 'file-text' },
   { to: '/videos', label: 'Video', icon: 'film' },
 ];
 

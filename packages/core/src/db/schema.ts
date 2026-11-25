@@ -215,6 +215,74 @@ export const VIDEO_STATUSES = [
 ] as const;
 export type VideoStatus = (typeof VIDEO_STATUSES)[number];
 
+// ───────────────────────── Kịch bản (quản lý riêng, tạo được nhiều video) ─────────────────────────
+
+export const SCRIPT_ORIGINS = ['ai', 'manual'] as const;
+export type ScriptOrigin = (typeof SCRIPT_ORIGINS)[number];
+
+/** writing: AI đang viết · ready: dùng được · failed: AI viết lỗi · archived: đã lưu trữ (ẩn, không xoá). */
+export const SCRIPT_STATUSES = ['writing', 'ready', 'failed', 'archived'] as const;
+export type ScriptStatus = (typeof SCRIPT_STATUSES)[number];
+
+export const script = pgTable(
+  'script',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id')
+      .notNull()
+      .references(() => workspace.id),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id),
+    /** Template là một phần của kịch bản; tạo video từ kịch bản không chọn lại template. */
+    templateId: text('template_id'),
+    templateVersion: integer('template_version'),
+    origin: text('origin', { enum: SCRIPT_ORIGINS }).notNull(),
+    status: text('status', { enum: SCRIPT_STATUSES }).notNull().default('writing'),
+    /** null khi AI chưa viết xong lần đầu. */
+    currentVersionId: text('current_version_id'),
+    failedReason: text('failed_reason'),
+    createdBy: text('created_by').references(() => appUser.id),
+    createdAt: createdAt(),
+    updatedAt: tsz('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('script_ws_status_updated_idx').on(t.workspaceId, t.status, t.updatedAt),
+    index('script_product_idx').on(t.productId),
+  ],
+);
+
+export const SCRIPT_VERSION_SOURCES = ['ai_draft', 'user_edit'] as const;
+export type ScriptVersionSource = (typeof SCRIPT_VERSION_SOURCES)[number];
+
+export interface RuleResult {
+  rule: string;
+  passed: boolean;
+  message?: string;
+}
+
+/** Bảng chỉ thêm, không sửa (giống video_version). `rules`/`passed` là kết quả kiểm luật lúc lưu. */
+export const scriptVersion = pgTable(
+  'script_version',
+  {
+    id: text('id').primaryKey(),
+    scriptId: text('script_id')
+      .notNull()
+      .references(() => script.id, { onDelete: 'cascade' }),
+    versionNo: integer('version_no').notNull(),
+    parentVersionId: text('parent_version_id'),
+    spec: jsonb('spec').$type<VideoSpec>().notNull(),
+    specHash: text('spec_hash').notNull(),
+    source: text('source', { enum: SCRIPT_VERSION_SOURCES }).notNull(),
+    rules: jsonb('rules').$type<RuleResult[]>().notNull(),
+    passed: boolean('passed').notNull(),
+    authorUserId: text('author_user_id').references(() => appUser.id),
+    changeSummary: text('change_summary'),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('script_version_script_no_uq').on(t.scriptId, t.versionNo)],
+);
+
 export const video = pgTable(
   'video',
   {
@@ -236,6 +304,9 @@ export const video = pgTable(
     failedReason: text('failed_reason'),
     /** Bước bị lỗi, để nút "Chạy lại" quay về đúng bước. */
     failedStep: text('failed_step'),
+    /** Kịch bản (và phiên bản) video được tạo từ; null nếu AI viết thẳng cho video (CLI). */
+    scriptId: text('script_id').references(() => script.id),
+    scriptVersionId: text('script_version_id'),
     createdAt: createdAt(),
     updatedAt: tsz('updated_at').defaultNow().notNull(),
   },
@@ -245,7 +316,7 @@ export const video = pgTable(
   ],
 );
 
-export const VERSION_SOURCES = ['ai_draft', 'ai_revise', 'user_edit', 'restore'] as const;
+export const VERSION_SOURCES = ['ai_draft', 'ai_revise', 'user_edit', 'restore', 'from_script'] as const;
 export type VersionSource = (typeof VERSION_SOURCES)[number];
 
 /** Bảng chỉ thêm, không sửa. */
@@ -267,12 +338,6 @@ export const videoVersion = pgTable(
   },
   (t) => [uniqueIndex('video_version_video_no_uq').on(t.videoId, t.versionNo)],
 );
-
-export interface RuleResult {
-  rule: string;
-  passed: boolean;
-  message?: string;
-}
 
 export const videoCheck = pgTable(
   'video_check',

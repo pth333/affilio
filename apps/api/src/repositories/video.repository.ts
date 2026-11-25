@@ -21,6 +21,10 @@ export interface VideoListItem {
   currentVersionId: string | null;
   approvedVersionId: string | null;
   failedReason: string | null;
+  /** Bước bị lỗi (vd. `scripting`) để giao diện chọn nút xử lý phù hợp. */
+  failedStep: string | null;
+  /** Kịch bản nguồn (null = AI viết thẳng qua CLI). */
+  scriptId: string | null;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -47,6 +51,8 @@ export async function listVideos(
       currentVersionId: video.currentVersionId,
       approvedVersionId: video.approvedVersionId,
       failedReason: video.failedReason,
+      failedStep: video.failedStep,
+      scriptId: video.scriptId,
       updatedAt: video.updatedAt,
       createdAt: video.createdAt,
     })

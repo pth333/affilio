@@ -3,11 +3,13 @@ import {
   draftWorkflowId,
   renderFinalWorkflowId,
   reviseWorkflowId,
+  scriptWriteWorkflowId,
   TASK_QUEUES,
   WORKFLOW_TYPES,
   type VideoDraftInput,
   type VideoRenderFinalInput,
   type VideoReviseInput,
+  type ScriptWriteInput,
 } from '#src/temporal/shared.ts';
 
 export * from '#src/temporal/shared.ts';
@@ -36,7 +38,7 @@ export interface StartedWorkflow {
  * - đang chạy → dùng lại (USE_EXISTING)
  * - đã xong thành công → không chạy lại; đã thất bại → cho chạy lại (ALLOW_DUPLICATE_FAILED_ONLY)
  */
-async function startOnce(client: Client, workflowType: string, workflowId: string, input: VideoDraftInput | VideoRenderFinalInput | VideoReviseInput): Promise<StartedWorkflow> {
+async function startOnce(client: Client, workflowType: string, workflowId: string, input: VideoDraftInput | VideoRenderFinalInput | VideoReviseInput | ScriptWriteInput): Promise<StartedWorkflow> {
   try {
     const handle = await client.workflow.start(workflowType, {
       taskQueue: TASK_QUEUES.video,
@@ -62,4 +64,9 @@ export function startRenderFinalWorkflow(client: Client, input: VideoRenderFinal
 
 export function startReviseWorkflow(client: Client, input: VideoReviseInput): Promise<StartedWorkflow> {
   return startOnce(client, WORKFLOW_TYPES.revise, reviseWorkflowId(input.versionId, input.sceneId), input);
+}
+
+/** `fromVersionId`: phiên bản hiện tại trước khi viết (null = lần đầu) — xem scriptWorkflowId. */
+export function startScriptWriteWorkflow(client: Client, input: ScriptWriteInput, fromVersionId: string | null): Promise<StartedWorkflow> {
+  return startOnce(client, WORKFLOW_TYPES.scriptWrite, scriptWriteWorkflowId(input.scriptId, fromVersionId), input);
 }

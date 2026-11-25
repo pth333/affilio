@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   });
   const providers = createProviders(config);
   const activities = createActivities({ db: handle.db, config, providers, storage: createStorage(config), logger });
-  const { draftVideo, reviseScene, renderPreview, renderFinal, markVideoFailed } = activities;
+  const { draftScript, draftVideo, reviseScene, renderPreview, renderFinal, markVideoFailed, markScriptFailed } = activities;
 
   const connection = await NativeConnection.connect({ address: config.TEMPORAL_ADDRESS });
   const common = { connection, namespace: config.TEMPORAL_NAMESPACE, identity, shutdownGraceTime: SHUTDOWN_GRACE_MS };
@@ -28,12 +28,12 @@ async function main(): Promise<void> {
       ...common,
       taskQueue: TASK_QUEUES.video,
       workflowsPath: fileURLToPath(new URL('./workflows.ts', import.meta.url)),
-      activities: { markVideoFailed },
+      activities: { markVideoFailed, markScriptFailed },
     }),
     Worker.create({
       ...common,
       taskQueue: TASK_QUEUES.llm,
-      activities: { draftVideo, reviseScene },
+      activities: { draftScript, draftVideo, reviseScene },
       maxConcurrentActivityTaskExecutions: config.WORKER_LLM_CONCURRENCY,
     }),
     Worker.create({

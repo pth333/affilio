@@ -3,7 +3,13 @@
  * Chỉ import giá trị từ '@temporalio/workflow' và '@affilio/core/temporal/shared'; còn lại dùng `import type`.
  */
 import { ActivityFailure, CancellationScope, proxyActivities, sleep, type RetryPolicy } from '@temporalio/workflow';
-import { TASK_QUEUES, type VideoDraftInput, type VideoRenderFinalInput, type VideoReviseInput } from '@affilio/core/temporal/shared';
+import {
+  TASK_QUEUES,
+  type ScriptWriteInput,
+  type VideoDraftInput,
+  type VideoRenderFinalInput,
+  type VideoReviseInput,
+} from '@affilio/core/temporal/shared';
 import type { Activities } from '#src/activities.ts';
 
 /** Giữ nguyên chính sách cũ của hàng đợi Postgres: 30s·2^n, tối đa 30 phút, 3 lần thử. */
@@ -26,6 +32,8 @@ export type DraftWorkflowResult =
   | { outcome: 'pending_review'; versionId: string }
   | { outcome: 'preview_skipped'; versionId: string; reason: string };
 
+export type ScriptWorkflowResult = { outcome: 'skipped'; reason: string } | { outcome: 'ready'; versionId: string };
+
 export type ReviseWorkflowResult =
   | { outcome: 'skipped'; reason: string }
   | { outcome: 'pending_review'; versionId: string }
@@ -41,6 +49,28 @@ function failureMessage(err: unknown): string {
 /** Hết lượt thử (hoặc bị huỷ) → đưa video về failed, kể cả khi workflow đang bị cancel. */
 async function failVideo(videoId: string, step: string, err: unknown): Promise<void> {
   await CancellationScope.nonCancellable(() => local.markVideoFailed({ videoId, step, reason: failureMessage(err) }));
+}
+
+/**
+ * AI viết kịch bản trong thư viện: writing → ready.
+ * Hết lượt thử → kịch bản `failed` để giao diện hiện nút "AI viết lại".
+ */
+export async function scriptWriteWorkflow(input: ScriptWriteInput): Promise<ScriptWorkflowResult> {
+  try {
+    for (;;) {
+      const script = await llm.draftScript(input);
+      if (script.kind === 'deferred') {
+        // Hết hạn mức ngày: ngủ tới lúc reset rồi viết lại, không tính vào lượt thử.
+        await sleep(Math.max(0, Date.parse(script.retryAt) - Date.now()));
+        continue;
+      }
+      if (script.kind === 'skipped') return { outcome: 'skipped', reason: script.reason };
+      return { outcome: 'ready', versionId: script.versionId };
+    }
+  } catch (err) {
+    await CancellationScope.nonCancellable(() => local.markScriptFailed({ scriptId: input.scriptId, reason: failureMessage(err) }));
+    throw err;
+  }
 }
 
 /** Viết nháp → kiểm tra luật cứng → (đạt) dựng preview → chờ duyệt. */

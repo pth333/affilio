@@ -1,114 +1,103 @@
 <script setup lang="ts">
-// Popup tạo video 2 bước:
-//   1. chọn sản phẩm + định dạng (template) → API ghép prompt từ template và gọi AI gợi ý kịch bản
-//   2. người dùng đọc/sửa lời thoại từng cảnh rồi mới tạo video (workflow không gọi AI lại)
+// Popup tạo video, hai cách:
+//   - "Từ kịch bản có sẵn": chọn một hoặc nhiều kịch bản đã sẵn sàng → dựng video ngay (server kiểm luật lại).
+//   - "AI viết kịch bản mới": giao AI viết ở nền (AiScriptForm); xong người dùng xem ở mục Kịch bản rồi mới tạo video.
 import { CHANNELS } from '~/data/mock';
-import type { Channel, ScriptSuggestion, ScriptTemplate } from '~/types';
+import type { Channel, ScriptListItem } from '~/types';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; created: [number] }>();
 
-const { products, ensureApiProductId } = useProductLibrary();
+type Tab = 'existing' | 'ai';
 
-const MAX_NARRATION = 400;
+/** Giới hạn số video tạo một lần để không dồn quá nhiều workflow cùng lúc. */
+const MAX_SCRIPTS = 20;
 
 const channels = CHANNELS.filter((channel) => channel.status === 'active');
 const channelId = ref(channels[0]?.id ?? '');
-const templates = ref<ScriptTemplate[]>([]);
-const templateId = ref('');
-const loadingTemplates = ref(false);
+const tab = ref<Tab>('existing');
+const scripts = ref<ScriptListItem[]>([]);
+const loadingScripts = ref(false);
 const keyword = ref('');
-const productId = ref('');
-const suggesting = ref(false);
-const creating = ref(false);
-const step = ref<'setup' | 'script'>('setup');
-const suggestion = ref<ScriptSuggestion | null>(null);
+const selectedIds = ref<string[]>([]);
+const submitting = ref(false);
+const aiBusy = ref(false);
 
-const busy = computed(() => suggesting.value || creating.value);
+const busy = computed(() => submitting.value || aiBusy.value);
 const selectedChannel = computed<Channel | null>(() => channels.find((channel) => channel.id === channelId.value) ?? null);
-const product = computed(() => products.value.find((item) => item.id === productId.value) ?? null);
-const template = computed(() => templates.value.find((item) => item.id === templateId.value) ?? null);
-const scenes = computed(() => suggestion.value?.spec.scenes ?? []);
-const hasEmptyScene = computed(() => scenes.value.some((scene) => scene.narration.trim().length === 0));
-const failedRules = computed(() => suggestion.value?.rules.filter((rule) => !rule.passed) ?? []);
-
-const filteredProducts = computed(() => {
+const reachedLimit = computed(() => selectedIds.value.length >= MAX_SCRIPTS);
+const filteredScripts = computed(() => {
   const query = keyword.value.trim().toLowerCase();
-  if (!query) return products.value;
-  return products.value.filter((item) => `${item.name} ${item.brand} ${item.category}`.toLowerCase().includes(query));
+  if (!query) return scripts.value;
+  return scripts.value.filter((item) => item.productName.toLowerCase().includes(query));
 });
 
-/** Tóm tắt định dạng: Mở đầu → Vấn đề → Lợi ích → Kêu gọi. */
-function templateOutline(item: ScriptTemplate): string {
-  return item.content.scenes.map((scene) => SCENE_ROLE_LABEL[scene.role] ?? scene.role).join(' → ');
+function toggleScript(id: string): void {
+  if (selectedIds.value.includes(id)) selectedIds.value = selectedIds.value.filter((item) => item !== id);
+  else if (!reachedLimit.value) selectedIds.value = [...selectedIds.value, id];
 }
 
-async function loadTemplates(): Promise<void> {
-  if (loadingTemplates.value) return;
-  loadingTemplates.value = true;
+async function loadScripts(): Promise<void> {
+  loadingScripts.value = true;
   try {
-    const { items } = await templateApi.getTemplates();
-    templates.value = items;
-    templateId.value = items.some((item) => item.id === templateId.value) ? templateId.value : (items[0]?.id ?? '');
+    const page = await scriptApi.getScripts({ status: 'ready', limit: 100 });
+    scripts.value = page.items;
   } catch {
     // interceptor đã hiện thông báo lỗi
   } finally {
-    loadingTemplates.value = false;
+    loadingScripts.value = false;
   }
-}
-
-function reset(): void {
-  step.value = 'setup';
-  suggestion.value = null;
-  productId.value = '';
-  keyword.value = '';
 }
 
 watch(
   () => props.open,
   (open) => {
     if (!open) return;
-    reset();
-    void loadTemplates();
+    tab.value = 'existing';
+    keyword.value = '';
+    selectedIds.value = [];
+    void loadScripts();
   },
   { immediate: true },
 );
 
-async function suggestScript(): Promise<void> {
-  if (!product.value || !template.value || suggesting.value) return;
-  suggesting.value = true;
+async function submit(): Promise<void> {
+  const chosen = scripts.value.filter((item) => selectedIds.value.includes(item.id));
+  if (chosen.length === 0 || submitting.value) return;
+  submitting.value = true;
   try {
-    // Sản phẩm thư viện chỉ có ở client: bảo đảm có id trên API trước khi gọi AI.
-    const apiProductId = await ensureApiProductId(product.value);
-    suggestion.value = await videoApi.suggestScript({ productId: apiProductId, templateId: template.value.id });
-    step.value = 'script';
-  } catch {
-    // interceptor đã hiện thông báo lỗi
+    // Tự báo lỗi gộp (silent) thay vì để interceptor bắn từng toast một.
+    const results = await Promise.allSettled(
+      chosen.map((item) => {
+        if (!item.currentVersionId) return Promise.reject(new Error('Kịch bản chưa có phiên bản'));
+        return scriptApi.createVideo(item.id, { versionId: item.currentVersionId }, { silent: true });
+      }),
+    );
+    const failures = results.flatMap((result, index) =>
+      result.status === 'rejected' ? [`${chosen[index]?.productName ?? ''}: ${getErrorMessage(result.reason)}`] : [],
+    );
+    const created = results.length - failures.length;
+    if (failures.length === 0) {
+      message.success(`Đã tạo ${created} video — AI đang dựng preview, xong sẽ vào Hộp thư duyệt.`);
+    } else {
+      console.warn('[create-video] một số kịch bản tạo video lỗi', failures);
+      message.warning(`Tạo được ${created}/${results.length} video. Lỗi: ${failures.join(' · ')}`);
+    }
+    if (created > 0) {
+      emit('created', created);
+      emit('close');
+    } else {
+      // Giữ popup mở để người dùng bỏ chọn kịch bản lỗi; tải lại vì có thể kịch bản vừa đổi phiên bản.
+      await loadScripts();
+    }
   } finally {
-    suggesting.value = false;
+    submitting.value = false;
   }
 }
 
-async function createVideo(): Promise<void> {
-  if (!product.value || !template.value || !suggestion.value || creating.value) return;
-  creating.value = true;
-  try {
-    const apiProductId = await ensureApiProductId(product.value);
-    await videoApi.createVideo({ productId: apiProductId, templateId: template.value.id, spec: suggestion.value.spec });
-    message.success('Đã tạo video từ kịch bản bạn duyệt. AI đang kiểm tra và dựng preview.');
-    emit('created', 1);
-    emit('close');
-    reset();
-  } catch {
-    // interceptor đã hiện thông báo lỗi
-  } finally {
-    creating.value = false;
-  }
-}
-
-function backToSetup(): void {
-  step.value = 'setup';
-  suggestion.value = null;
+function handleAiSubmitted(): void {
+  // Chưa có video nào được tạo — kịch bản AI viết xong sẽ ở mục Kịch bản.
+  emit('close');
 }
 </script>
 
@@ -118,24 +107,17 @@ function backToSetup(): void {
     :busy="busy"
     :width="820"
     eyebrow="Video mới"
-    :title="step === 'setup' ? 'Chọn sản phẩm và định dạng' : 'Duyệt kịch bản AI gợi ý'"
-    :description="
-      step === 'setup'
-        ? 'Định dạng quyết định cấu trúc kịch bản. AI gợi ý xong bạn sẽ đọc và sửa trước khi tạo video.'
-        : 'Sửa lời thoại từng cảnh nếu cần. Video chỉ được tạo khi bạn bấm “Tạo video với kịch bản này”.'
-    "
+    title="Tạo video"
+    description="Dựng video từ kịch bản có sẵn, hoặc giao AI viết kịch bản mới rồi duyệt ở mục Kịch bản trước khi tạo video."
     @close="emit('close')"
   >
-    <!-- Bước 1: sản phẩm + định dạng -->
-    <div v-if="step === 'setup'" class="space-y-5">
+    <div class="space-y-5">
       <!-- Kênh đăng video -->
       <section>
         <label class="form-label" for="video-channel">Kênh sáng tạo</label>
         <div class="relative">
           <select id="video-channel" v-model="channelId" class="field h-11 w-full appearance-none pr-9 font-medium" :disabled="busy">
-            <option v-for="channel in channels" :key="channel.id" :value="channel.id">
-              {{ channel.name }} · {{ channel.handle }}
-            </option>
+            <option v-for="channel in channels" :key="channel.id" :value="channel.id">{{ channel.name }} · {{ channel.handle }}</option>
           </select>
           <AppIcon name="chevron-down" :size="16" class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
         </div>
@@ -149,147 +131,98 @@ function backToSetup(): void {
         </p>
       </section>
 
-      <section>
-        <p class="form-label mb-0">Sản phẩm</p>
-        <p class="mb-2 text-[0.82rem] text-muted">Mỗi lần tạo một video cho một sản phẩm.</p>
+      <div class="flex gap-1 rounded-xl bg-hover p-1" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="flex-1 rounded-lg px-3 py-2 text-[0.9rem] font-semibold transition-colors"
+          :class="tab === 'existing' ? 'bg-surface text-fg shadow-sm' : 'text-muted hover:text-fg'"
+          :aria-selected="tab === 'existing'"
+          :disabled="busy"
+          @click="tab = 'existing'"
+        >
+          Từ kịch bản có sẵn
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="flex-1 rounded-lg px-3 py-2 text-[0.9rem] font-semibold transition-colors"
+          :class="tab === 'ai' ? 'bg-surface text-fg shadow-sm' : 'text-muted hover:text-fg'"
+          :aria-selected="tab === 'ai'"
+          :disabled="busy"
+          @click="tab = 'ai'"
+        >
+          AI viết kịch bản mới
+        </button>
+      </div>
+
+      <!-- Từ kịch bản có sẵn -->
+      <section v-if="tab === 'existing'">
+        <div class="flex items-baseline justify-between gap-2">
+          <p class="form-label mb-0">Kịch bản sẵn sàng</p>
+          <button
+            v-if="selectedIds.length"
+            type="button"
+            class="text-[0.82rem] font-semibold text-primary hover:underline"
+            :disabled="submitting"
+            @click="selectedIds = []"
+          >
+            Bỏ chọn ({{ selectedIds.length }})
+          </button>
+        </div>
+        <p class="mb-2 text-[0.82rem] text-muted">Chọn nhiều kịch bản (tối đa {{ MAX_SCRIPTS }}) — mỗi kịch bản một video.</p>
         <div class="relative mb-2">
           <AppIcon name="search" :size="16" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-          <input v-model="keyword" class="field w-full pl-9" type="search" placeholder="Tìm theo tên, thương hiệu, danh mục…" />
+          <input v-model="keyword" class="field w-full pl-9" type="search" placeholder="Tìm theo tên sản phẩm…" />
         </div>
-        <ul class="max-h-[220px] space-y-2 overflow-y-auto pr-1">
-          <li v-for="item in filteredProducts" :key="item.id">
+        <p v-if="loadingScripts && scripts.length === 0" class="py-6 text-center text-[0.85rem] text-muted">Đang tải kịch bản…</p>
+        <ul v-else class="max-h-[300px] space-y-2 overflow-y-auto pr-1">
+          <li v-for="item in filteredScripts" :key="item.id">
             <label
               class="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors"
-              :class="
-                productId === item.id ? 'border-primary bg-primary-soft/60' : 'border-line hover:border-primary/40 hover:bg-hover'
-              "
+              :class="selectedIds.includes(item.id) ? 'border-primary bg-primary-soft/60' : 'border-line hover:border-primary/40 hover:bg-hover'"
             >
               <input
                 class="size-5 shrink-0 accent-(--primary)"
-                type="radio"
-                name="video-product"
-                :checked="productId === item.id"
-                :disabled="busy"
-                @change="productId = item.id"
+                type="checkbox"
+                :checked="selectedIds.includes(item.id)"
+                :disabled="submitting || (reachedLimit && !selectedIds.includes(item.id))"
+                @change="toggleScript(item.id)"
               />
-              <ProductThumb :name="item.name" :color="item.color" :image-url="item.imageUrl ?? null" :size="44" />
+              <ProductThumb :name="item.productName" :color="pickAccentColor(item.productName)" :size="40" />
               <span class="min-w-0 flex-1">
-                <span class="block truncate font-medium">{{ item.name }}</span>
-                <span class="block truncate text-[0.82rem] text-muted">{{ item.category }} · {{ item.brand }}</span>
+                <span class="block truncate font-medium">{{ item.productName }}</span>
+                <span class="block truncate text-[0.82rem] text-muted">
+                  {{ item.origin === 'ai' ? 'AI viết' : 'Tự viết' }} · đã tạo {{ item.videoCount }} video · {{ formatDateTime(item.updatedAt) }}
+                </span>
               </span>
-              <span class="shrink-0 font-semibold tabular-nums">{{ formatCurrency(item.price) }}</span>
+              <span v-if="isNewScript(item)" class="badge bg-primary text-white">Mới</span>
             </label>
           </li>
-          <li v-if="filteredProducts.length === 0" class="rounded-xl border border-dashed border-line px-4 py-8 text-center text-muted">
-            Không tìm thấy sản phẩm phù hợp.
-            <NuxtLink to="/products" class="font-semibold text-primary hover:underline">Thêm sản phẩm</NuxtLink>
+          <li v-if="filteredScripts.length === 0" class="rounded-xl border border-dashed border-line px-4 py-8 text-center text-muted">
+            {{ scripts.length === 0 ? 'Chưa có kịch bản nào sẵn sàng.' : 'Không tìm thấy kịch bản phù hợp.' }}
+            <button type="button" class="font-semibold text-primary hover:underline" @click="tab = 'ai'">Giao AI viết</button>
+            hoặc
+            <NuxtLink to="/scripts" class="font-semibold text-primary hover:underline">tự viết ở mục Kịch bản</NuxtLink>.
           </li>
         </ul>
-      </section>
 
-      <section>
-        <p class="form-label">Định dạng kịch bản</p>
-        <p v-if="loadingTemplates" class="text-[0.85rem] text-muted">Đang tải định dạng…</p>
-        <p v-else-if="templates.length === 0" class="text-[0.85rem] text-muted">
-          Chưa có định dạng nào — kiểm tra API `/api/templates`.
-        </p>
-        <div v-else class="grid gap-2 sm:grid-cols-2">
-          <button
-            v-for="item in templates"
-            :key="item.id"
-            type="button"
-            class="rounded-xl border p-3 text-left transition-colors"
-            :class="
-              templateId === item.id
-                ? 'border-primary bg-primary-soft/60 ring-2 ring-primary/20'
-                : 'border-line hover:border-primary/40 hover:bg-hover'
-            "
-            :aria-pressed="templateId === item.id"
-            :disabled="busy"
-            @click="templateId = item.id"
-          >
-            <span class="block text-[0.92rem] leading-snug font-semibold">{{ item.name }}</span>
-            <span class="mt-1 block text-[0.78rem] leading-snug text-muted">{{ templateOutline(item) }}</span>
-            <span class="mt-1 block text-[0.75rem] text-muted">{{ item.content.tone }}</span>
-          </button>
-        </div>
-      </section>
-    </div>
-
-    <!-- Bước 2: duyệt / sửa kịch bản -->
-    <div v-else-if="suggestion" class="space-y-4">
-      <div class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-hover/40 px-3 py-2 text-[0.85rem]">
-        <ProductThumb v-if="product" :name="product.name" :color="product.color" :image-url="product.imageUrl ?? null" :size="28" />
-        <span class="font-semibold">{{ product?.name }}</span>
-        <span class="text-line">•</span>
-        <span class="text-muted">{{ suggestion.template.name }}</span>
-        <span class="text-line">•</span>
-        <span class="text-muted">{{ scenes.length }} cảnh</span>
-        <span v-if="failedRules.length" class="badge bg-warn-soft text-warn">{{ failedRules.length }} luật cần lưu ý</span>
-        <span v-if="selectedChannel" class="badge ml-auto bg-primary-soft text-primary">{{ selectedChannel.name }}</span>
-      </div>
-
-      <div v-if="failedRules.length" class="space-y-1 rounded-xl border border-warn/40 bg-warn-soft/50 px-3 py-2">
-        <p v-for="rule in failedRules" :key="rule.rule" class="text-[0.82rem] text-warn">
-          • {{ CHECK_RULE_LABEL[rule.rule] ?? rule.rule }}<span v-if="rule.message"> — {{ rule.message }}</span>
-        </p>
-      </div>
-
-      <ol class="space-y-3">
-        <li v-for="(scene, index) in scenes" :key="scene.id" class="rounded-xl border border-line p-3">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <span class="flex items-center gap-2">
-              <span class="grid size-6 place-items-center rounded-md bg-hover text-[0.75rem] font-bold tabular-nums">
-                {{ index + 1 }}
-              </span>
-              <span class="text-[0.9rem] font-semibold">{{ SCENE_ROLE_LABEL[scene.role] ?? scene.role }}</span>
-              <span class="badge" :class="scene.visual.type === 'image' ? 'bg-ok-soft text-ok' : 'bg-primary-soft text-primary'">
-                {{ scene.visual.type === 'image' ? 'Ảnh sản phẩm' : 'Ảnh AI' }}
-              </span>
-            </span>
-            <span class="text-[0.75rem] text-muted tabular-nums">{{ scene.narration.length }}/{{ MAX_NARRATION }}</span>
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          <p class="text-[0.88rem] text-muted">
+            {{ selectedIds.length ? `${selectedIds.length} video sẽ được tạo.` : 'Chọn ít nhất một kịch bản.' }}
+          </p>
+          <div class="flex gap-2">
+            <button type="button" class="btn" :disabled="submitting" @click="emit('close')">Huỷ</button>
+            <button type="button" class="btn btn-primary" :disabled="submitting || selectedIds.length === 0" @click="submit">
+              <AppIcon name="film" :size="16" :class="submitting ? 'animate-pulse' : ''" />
+              {{ submitting ? 'Đang tạo…' : `Tạo video (${selectedIds.length})` }}
+            </button>
           </div>
-          <textarea
-            v-model="scene.narration"
-            class="field min-h-[72px] w-full text-[0.92rem] leading-relaxed"
-            :maxlength="MAX_NARRATION"
-            :disabled="creating"
-          />
-        </li>
-      </ol>
-    </div>
-
-    <template #footer>
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <p v-if="step === 'setup'" class="text-[0.88rem] text-muted">
-          <template v-if="product && template">
-            Kịch bản sẽ theo định dạng <strong class="text-fg">{{ template.name }}</strong>.
-          </template>
-          <template v-else>Chọn một sản phẩm và một định dạng để bắt đầu.</template>
-        </p>
-        <p v-else class="text-[0.88rem] text-muted">
-          <template v-if="hasEmptyScene">Còn cảnh chưa có lời thoại — điền hết rồi mới tạo được video.</template>
-          <template v-else>Video được tạo ngay với kịch bản này; AI không viết lại.</template>
-        </p>
-        <div class="flex gap-2">
-          <button v-if="step === 'script'" type="button" class="btn" :disabled="busy" @click="backToSetup">Quay lại</button>
-          <button type="button" class="btn" :disabled="busy" @click="emit('close')">Huỷ</button>
-          <button
-            v-if="step === 'setup'"
-            type="button"
-            class="btn btn-primary"
-            :disabled="busy || !product || !template"
-            @click="suggestScript"
-          >
-            <AppIcon name="sparkles" :size="16" :class="suggesting ? 'animate-pulse' : ''" />
-            {{ suggesting ? 'AI đang viết kịch bản…' : 'Gợi ý kịch bản' }}
-          </button>
-          <button v-else type="button" class="btn btn-primary" :disabled="creating || hasEmptyScene" @click="createVideo">
-            <AppIcon name="film" :size="16" :class="creating ? 'animate-pulse' : ''" />
-            {{ creating ? 'Đang tạo video…' : 'Tạo video với kịch bản này' }}
-          </button>
         </div>
-      </div>
-    </template>
+      </section>
+
+      <!-- AI viết kịch bản mới -->
+      <AiScriptForm v-else v-model:busy="aiBusy" @cancel="emit('close')" @submitted="handleAiSubmitted" />
+    </div>
   </AppModal>
 </template>

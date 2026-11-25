@@ -20,6 +20,10 @@ export interface VideoListItem {
   productName: string;
   currentVersionId: string | null;
   failedReason: string | null;
+  /** Bước bị lỗi (vd. `scripting` = AI viết kịch bản lỗi) để chọn nút xử lý phù hợp. */
+  failedStep: string | null;
+  /** Kịch bản nguồn; null = video cũ AI viết thẳng trong workflow. */
+  scriptId: string | null;
   updatedAt: string;
 }
 
@@ -137,21 +141,59 @@ export interface RuleCheck {
   message?: string;
 }
 
-/** Spec kịch bản: gửi nguyên lại cho server khi tạo video sau khi người dùng sửa. */
-export interface ScriptSpec {
-  schema: number;
-  product_id: string;
-  template: { id: string; version: number };
-  cta: { enabled: boolean };
-  music: { asset_id: string; volume: number } | null;
-  scenes: Scene[];
+// ───────────── Thư viện kịch bản (/api/scripts) ─────────────
+
+/** writing: AI đang viết · ready: dùng được · failed: AI viết lỗi · archived: đã lưu trữ. */
+export const SCRIPT_STATUSES = ['writing', 'ready', 'failed', 'archived'] as const;
+export type ScriptStatus = (typeof SCRIPT_STATUSES)[number];
+export type ScriptOrigin = 'ai' | 'manual';
+export type ScriptVersionSource = 'ai_draft' | 'user_edit';
+
+export const SCRIPT_STATUS_LABEL: Record<ScriptStatus, string> = {
+  writing: 'AI đang viết', ready: 'Sẵn sàng', failed: 'Lỗi', archived: 'Đã lưu trữ',
+};
+
+export interface ScriptListItem {
+  id: string;
+  status: ScriptStatus;
+  origin: ScriptOrigin;
+  productId: string;
+  productName: string;
+  templateId: string | null;
+  currentVersionId: string | null;
+  currentSource: ScriptVersionSource | null;
+  failedReason: string | null;
+  videoCount: number;
+  updatedAt: string;
+  createdAt: string;
 }
 
-/** AI gợi ý kịch bản theo template — chưa tạo video, chờ người dùng duyệt. */
-export interface ScriptSuggestion {
-  spec: ScriptSpec;
+export interface ScriptRecord {
+  id: string;
+  productId: string;
+  templateId: string | null;
+  templateVersion: number | null;
+  origin: ScriptOrigin;
+  status: ScriptStatus;
+  currentVersionId: string | null;
+  failedReason: string | null;
+  updatedAt: string;
+}
+
+export interface ScriptDetail {
+  script: ScriptRecord;
+  productName: string | null;
+  /** null khi AI chưa viết xong lần đầu. */
+  version: { id: string; versionNo: number; source: ScriptVersionSource; spec: { scenes: Scene[] }; passed: boolean } | null;
   rules: RuleCheck[];
-  template: { id: string; version: number; name: string };
+  /** Khung cảnh của template (role + gợi ý). */
+  template: ScriptTemplate['content'];
+  videoCount: number;
+}
+
+/** Kết quả giao AI viết kịch bản: workflowId null = chưa khởi chạy được (bấm "AI viết lại"). */
+export interface AiScriptRequestResult {
+  items: { script: ScriptRecord; workflowId: string | null }[];
 }
 
 export interface DraftScene {
